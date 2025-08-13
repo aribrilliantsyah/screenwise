@@ -168,35 +168,29 @@ export default function AdminPage() {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }) as any[][];
 
                 if (json.length < 6) throw new Error("Format template tidak valid. Pastikan template memiliki header metadata dan pertanyaan.");
 
                 // Ekstrak Metadata
-                const title = json[0][1] || `Kuis Impor - ${new Date().toLocaleString()}`;
-                const description = json[1][1] || "Deskripsi kuis yang diimpor.";
-                const passingScore = parseInt(String(json[2][1]), 10) || 70;
-                const timeLimitSeconds = parseInt(String(json[3][1]), 10) || 300;
+                const title = json[0]?.[1] || `Kuis Impor - ${new Date().toLocaleString()}`;
+                const description = json[1]?.[1] || "Deskripsi kuis yang diimpor.";
+                const passingScore = parseInt(String(json[2]?.[1]), 10) || 70;
+                const timeLimitSeconds = parseInt(String(json[3]?.[1]), 10) || 300;
 
                 // Konversi baris pertanyaan ke objek
-                const questionRows = json.slice(5); // Mulai dari baris ke-6
-                const questionHeaders = json[5] as string[];
+                const questionRows = json.slice(5); // Mulai dari baris ke-6 (indeks 5)
 
                 const parsedQuestions: Omit<Question, 'id'>[] = questionRows.map((row, rowIndex) => {
-                    const rowData: { [key: string]: any } = {};
-                    questionHeaders.forEach((header, colIndex) => {
-                       rowData[header] = row[colIndex];
-                    });
-                    
-                    const question = rowData['Pertanyaan'];
-                    if (!question) throw new Error(`Pertanyaan di baris Excel ${rowIndex + 7} kosong.`);
-                    
+                    const question = row[0]; // Kolom A
+                    if (!question) return null; // Lewati baris jika pertanyaan kosong
+
                     const options: string[] = [];
                     let correctAnswer = '';
                     
+                    // Baca opsi dari kolom B sampai F (indeks 1 sampai 5)
                     for (let i = 1; i <= 5; i++) {
-                        const optionKey = `Opsi ${i}`;
-                        let option = rowData[optionKey];
+                        let option = row[i];
                         if (option) {
                            option = String(option);
                            if (option.startsWith('(benar)')) {
@@ -210,11 +204,11 @@ export default function AdminPage() {
                         }
                     }
 
-                    if (!correctAnswer) throw new Error(`Tidak ada jawaban benar yang ditandai dengan '(benar)' untuk pertanyaan di baris Excel ${rowIndex + 7}.`);
-                    if (options.length < 2) throw new Error(`Pertanyaan di baris Excel ${rowIndex + 7} harus memiliki minimal 2 opsi.`);
+                    if (!correctAnswer) throw new Error(`Tidak ada jawaban benar yang ditandai dengan '(benar)' untuk pertanyaan "${question}".`);
+                    if (options.length < 2) throw new Error(`Pertanyaan "${question}" harus memiliki minimal 2 opsi.`);
 
                     return { question, options, correctAnswer };
-                }).filter(q => q.question); // Filter baris kosong
+                }).filter((q): q is Omit<Question, 'id'> => q !== null);
 
                 if (parsedQuestions.length === 0) {
                    throw new Error("File Excel tidak mengandung pertanyaan atau formatnya salah.");
@@ -229,7 +223,15 @@ export default function AdminPage() {
                 };
 
                 setImportedQuiz(tempQuizData);
-                importForm.reset(tempQuizData);
+                // Reset form react-hook-form dengan nilai baru
+                importForm.reset({
+                  ...tempQuizData,
+                  questions: tempQuizData.questions.map(q => ({
+                    question: q.question,
+                    options: q.options,
+                    correctAnswer: q.correctAnswer
+                  }))
+                });
                 setIsImportDialogOpen(true);
 
             } catch (error: any) {
@@ -269,9 +271,16 @@ export default function AdminPage() {
         const question = form.getValues(`questions.${questionIndex}`);
         const newOptions = [...question.options];
         newOptions.splice(optionIndex, 1);
+        
+        // Cek apakah opsi yang dihapus adalah jawaban yang benar
+        const currentCorrectAnswer = form.getValues(`questions.${questionIndex}.correctAnswer`);
+        const deletedOptionValue = question.options[optionIndex];
+
         update(questionIndex, {
             ...question,
-            options: newOptions
+            options: newOptions,
+            // Jika jawaban benar dihapus, reset correctAnswer
+            correctAnswer: currentCorrectAnswer === deletedOptionValue ? undefined : currentCorrectAnswer
         });
     };
 
@@ -376,7 +385,7 @@ export default function AdminPage() {
                                                                         {form.watch(`questions.${index}.options`).map((option, optionIndex) => (
                                                                             <div key={optionIndex} className="flex items-center gap-2">
                                                                                 <FormControl>
-                                                                                    <RadioGroupItem value={form.watch(`questions.${index}.options.${optionIndex}`)} id={`q${index}-o${optionIndex}`} />
+                                                                                    <RadioGroupItem value={form.getValues(`questions.${index}.options.${optionIndex}`)} id={`q${index}-o${optionIndex}`} />
                                                                                 </FormControl>
                                                                                 <Input
                                                                                     {...form.register(`questions.${index}.options.${optionIndex}`)}
@@ -554,5 +563,7 @@ export default function AdminPage() {
         </div>
     )
 }
+
+    
 
     
