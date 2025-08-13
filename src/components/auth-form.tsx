@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -38,6 +39,7 @@ export function AuthForm({ variant }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -56,10 +58,15 @@ export function AuthForm({ variant }: AuthFormProps) {
           values.email,
           values.password
         );
+        router.push("/quiz");
       } else {
         await signInWithEmailAndPassword(auth, values.email, values.password);
+        if (values.email === 'admin@screenwise.com') {
+          router.push("/admin");
+        } else {
+          router.push("/quiz");
+        }
       }
-      router.push("/quiz");
     } catch (error: any) {
       toast({
         variant: "destructive",

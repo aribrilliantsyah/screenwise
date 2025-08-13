@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, BrainCircuit, Lightbulb, CheckCircle, XCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/auth-context";
 
 interface Attempt {
   answers: Record<string, string>;
@@ -19,21 +20,27 @@ interface Attempt {
 
 export default function ResultsPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [analysis, setAnalysis] = useState<AnalyzeQuizPerformanceOutput | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
-  const userId = "guest_user"; // A generic user id for non-authenticated users
 
   useEffect(() => {
-    const storedAttempt = localStorage.getItem(`quiz_attempt_${userId}`);
+    if (authLoading) return;
+    if (!user) {
+      router.push("/quiz");
+      return;
+    }
+
+    const storedAttempt = localStorage.getItem(`quiz_attempt_${user.uid}`);
     if (storedAttempt) {
       const parsedAttempt = JSON.parse(storedAttempt);
       setAttempt(parsedAttempt);
-      fetchAnalysis(parsedAttempt, userId);
+      fetchAnalysis(parsedAttempt, user.uid);
     } else {
       router.push("/quiz");
     }
-  }, [router]);
+  }, [router, user, authLoading]);
 
   const fetchAnalysis = async (userAttempt: Attempt, currentUserId: string) => {
     setLoadingAnalysis(true);
@@ -60,13 +67,14 @@ export default function ResultsPage() {
   };
 
   const handleRetake = () => {
-    localStorage.removeItem(`quiz_attempt_${userId}`);
+    if (!user) return;
+    localStorage.removeItem(`quiz_attempt_${user.uid}`);
     router.push("/quiz");
   };
 
   const memoizedQuizQuestions = useMemo(() => quizQuestions, []);
 
-  if (!attempt) {
+  if (!attempt || authLoading) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
