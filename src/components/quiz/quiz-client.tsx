@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { type QuizGroup } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
@@ -16,14 +16,77 @@ interface QuizClientProps {
     quiz: QuizGroup;
 }
 
+interface ActiveQuizSession {
+    quizId: string;
+    timeLeft: number;
+    answers: Record<string, string>;
+    startTime: number; // Store timestamp of when the quiz was started
+}
+
+
 export default function QuizClient({ quiz }: QuizClientProps) {
   const { user } = useAuth();
+  const router = useRouter();
+  
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(quiz.timeLimitSeconds);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const router = useRouter();
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  const sessionKey = user ? `active_quiz_session_${user.email}` : '';
 
+  const saveProgress = useCallback(() => {
+    if (!user || !sessionKey) return;
+    const session: ActiveQuizSession = {
+      quizId: quiz.id,
+      timeLeft,
+      answers,
+      startTime: Date.now()
+    };
+    localStorage.setItem(sessionKey, JSON.stringify(session));
+  }, [user, sessionKey, quiz.id, timeLeft, answers]);
+
+
+  // Initialize state from localStorage or start fresh
   useEffect(() => {
+    if (!user || !sessionKey) return;
+
+    const savedSessionRaw = localStorage.getItem(sessionKey);
+    if (savedSessionRaw) {
+        const savedSession: ActiveQuizSession = JSON.parse(savedSessionRaw);
+        // Ensure the saved session is for the current quiz
+        if (savedSession.quizId === quiz.id) {
+            setAnswers(savedSession.answers || {});
+            // Recalculate time left based on when it was last saved
+            const elapsed = Math.floor((Date.now() - savedSession.startTime) / 1000);
+            const newTimeLeft = savedSession.timeLeft - elapsed;
+            setTimeLeft(newTimeLeft > 0 ? newTimeLeft : 0);
+        } else {
+            // It's a session for a different quiz, so start fresh for this one
+            // This case shouldn't happen with the dashboard logic, but as a safeguard:
+            localStorage.removeItem(sessionKey); // Clear the old session
+            setTimeLeft(quiz.timeLimitSeconds);
+            saveProgress(); // Start a new session
+        }
+    } else {
+        // No saved session, start a new one
+        setTimeLeft(quiz.timeLimitSeconds);
+        const initialSession: ActiveQuizSession = { 
+          quizId: quiz.id, 
+          timeLeft: quiz.timeLimitSeconds, 
+          answers: {}, 
+          startTime: Date.now()
+        };
+        localStorage.setItem(sessionKey, JSON.stringify(initialSession));
+    }
+    setIsInitialized(true);
+  }, [user, quiz.id, sessionKey]);
+
+
+  // Timer logic
+  useEffect(() => {
+    if (!isInitialized) return;
+
     const timer = setInterval(() => {
       setTimeLeft((prevTime) => {
         if (prevTime <= 1) {
@@ -36,15 +99,34 @@ export default function QuizClient({ quiz }: QuizClientProps) {
     }, 1000);
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isInitialized]);
+
+  // Save progress periodically
+  useEffect(() => {
+      if (!isInitialized) return;
+      const saveInterval = setInterval(saveProgress, 5000); // Save every 5 seconds
+      return () => clearInterval(saveInterval);
+  }, [isInitialized, saveProgress]);
+
 
   const handleAnswerChange = (questionId: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    const newAnswers = { ...answers, [questionId]: value };
+    setAnswers(newAnswers);
+    // Save progress on every answer change for better resilience
+     if (!user || !sessionKey) return;
+    const session: ActiveQuizSession = {
+      quizId: quiz.id,
+      timeLeft,
+      answers: newAnswers,
+      startTime: Date.now() // Reset startTime to recalculate from this point
+    };
+    localStorage.setItem(sessionKey, JSON.stringify(session));
   };
   
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
+    if (isSubmitting) return;
     setIsSubmitting(true);
-    if (!user) {
+    if (!user || !sessionKey) {
       console.error("User not logged in.");
       router.push('/login');
       return;
@@ -68,17 +150,28 @@ export default function QuizClient({ quiz }: QuizClientProps) {
       timestamp: new Date().toISOString(),
     };
 
-    // Simpan percobaan untuk kuis spesifik ini
+    // Save attempt for this specific quiz
     localStorage.setItem(`quiz_attempt_${user.email}_${quiz.id}`, JSON.stringify(attemptData));
     
-    // Simpan juga percobaan di bawah daftar semua percobaan untuk admin
+    // Add attempt to the list of all attempts for the admin
     const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
     const allAttempts = allAttemptsRaw ? JSON.parse(allAttemptsRaw) : [];
     allAttempts.push({ userEmail: user.email, ...attemptData });
     localStorage.setItem('all_quiz_attempts', JSON.stringify(allAttempts));
+    
+    // Clear active session
+    localStorage.removeItem(sessionKey);
 
     router.push(`/quiz/results?quizId=${quiz.id}`);
-  };
+  }, [isSubmitting, user, sessionKey, router, quiz, answers]);
+
+  if (!isInitialized) {
+      return (
+          <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+              <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          </div>
+      )
+  }
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
