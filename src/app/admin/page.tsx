@@ -4,11 +4,19 @@
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, PlusCircle, Edit, Trash2 } from "lucide-react";
-import { quizGroups } from "@/data/quiz-data";
+import { getQuizGroups, saveQuizGroups, type QuizGroup } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 
 interface Attempt {
   userEmail: string;
@@ -20,10 +28,30 @@ interface Attempt {
 
 const ITEMS_PER_PAGE = 5;
 
+const questionSchema = z.object({
+  question: z.string().min(1, "Pertanyaan tidak boleh kosong"),
+  options: z.array(z.string().min(1, "Opsi tidak boleh kosong")).min(2, "Minimal 2 opsi"),
+  correctAnswer: z.string().min(1, "Jawaban benar harus diisi"),
+});
+
+const quizFormSchema = z.object({
+  title: z.string().min(1, "Judul kuis harus diisi"),
+  description: z.string().min(1, "Deskripsi harus diisi"),
+  passingScore: z.coerce.number().min(0).max(100),
+  timeLimitSeconds: z.coerce.number().min(60, "Minimal waktu 60 detik"),
+  questions: z.array(questionSchema).min(1, "Minimal 1 pertanyaan"),
+});
+
+
 export default function AdminPage() {
     const { isAdmin, loading: authLoading } = useAuth();
     const router = useRouter();
+    const { toast } = useToast();
+
+    const [quizzes, setQuizzes] = useState<QuizGroup[]>([]);
     const [attempts, setAttempts] = useState<Attempt[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     // State untuk paginasi
     const [quizPage, setQuizPage] = useState(1);
@@ -36,16 +64,65 @@ export default function AdminPage() {
     }, [isAdmin, authLoading, router]);
 
     useEffect(() => {
-        // Ambil semua percobaan kuis dari local storage
+        // Ambil data dari localStorage
+        setQuizzes(getQuizGroups());
         const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
         if (allAttemptsRaw) {
             setAttempts(JSON.parse(allAttemptsRaw));
         }
     }, []);
 
+    const form = useForm<z.infer<typeof quizFormSchema>>({
+        resolver: zodResolver(quizFormSchema),
+        defaultValues: {
+            title: "",
+            description: "",
+            passingScore: 70,
+            timeLimitSeconds: 300,
+            questions: [{ question: "", options: ["", ""], correctAnswer: "" }]
+        },
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "questions"
+    });
+
+    const onSubmit = (values: z.infer<typeof quizFormSchema>) => {
+        setIsSubmitting(true);
+        try {
+            const newQuiz: QuizGroup = {
+                id: values.title.toLowerCase().replace(/\s+/g, '-'), // Generate ID from title
+                ...values,
+                questions: values.questions.map((q, index) => ({ ...q, id: index + 1 })),
+            };
+
+            const updatedQuizzes = [...quizzes, newQuiz];
+            saveQuizGroups(updatedQuizzes);
+            setQuizzes(updatedQuizzes);
+            
+            toast({
+                title: "Sukses!",
+                description: "Kuis baru berhasil ditambahkan.",
+            });
+            form.reset();
+            setIsDialogOpen(false);
+
+        } catch (error) {
+            toast({
+                variant: "destructive",
+                title: "Gagal",
+                description: "Terjadi kesalahan saat menyimpan kuis.",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+
     // Logika Paginasi Kuis
-    const totalQuizPages = Math.ceil(quizGroups.length / ITEMS_PER_PAGE);
-    const displayedQuizzes = quizGroups.slice((quizPage - 1) * ITEMS_PER_PAGE, quizPage * ITEMS_PER_PAGE);
+    const totalQuizPages = Math.ceil(quizzes.length / ITEMS_PER_PAGE);
+    const displayedQuizzes = quizzes.slice((quizPage - 1) * ITEMS_PER_PAGE, quizPage * ITEMS_PER_PAGE);
 
     // Logika Paginasi Peserta
     const totalAttemptPages = Math.ceil(attempts.length / ITEMS_PER_PAGE);
@@ -94,7 +171,72 @@ export default function AdminPage() {
                            </TableBody>
                        </Table>
                        <div className="flex items-center justify-between mt-4">
-                            <Button className="w-fit"><PlusCircle /> Tambah Kuis Baru</Button>
+                            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button className="w-fit"><PlusCircle /> Tambah Kuis Baru</Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                                    <DialogHeader>
+                                        <DialogTitle>Tambah Kuis Baru</DialogTitle>
+                                        <DialogDescription>
+                                            Isi detail kuis dan tambahkan pertanyaan di bawah ini.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <Form {...form}>
+                                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                                            <FormField name="title" control={form.control} render={({ field }) => (
+                                                <FormItem><FormLabel>Judul Kuis</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <FormField name="description" control={form.control} render={({ field }) => (
+                                                <FormItem><FormLabel>Deskripsi</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <FormField name="passingScore" control={form.control} render={({ field }) => (
+                                                    <FormItem><FormLabel>Skor Lulus (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                                )} />
+                                                <FormField name="timeLimitSeconds" control={form.control} render={({ field }) => (
+                                                    <FormItem><FormLabel>Batas Waktu (detik)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                                )} />
+                                            </div>
+                                            
+                                            <div className="space-y-4">
+                                                <h3 className="text-lg font-medium">Pertanyaan</h3>
+                                                {fields.map((item, index) => (
+                                                    <div key={item.id} className="p-4 border rounded-md space-y-3 relative">
+                                                        <FormField name={`questions.${index}.question`} control={form.control} render={({ field }) => (
+                                                            <FormItem><FormLabel>Pertanyaan {index + 1}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                                        )} />
+                                                        
+                                                        <FormField name={`questions.${index}.options`} control={form.control} render={({ field }) => (
+                                                            <FormItem><FormLabel>Opsi Jawaban (opsi pertama adalah jawaban benar)</FormLabel>
+                                                                <div className="space-y-2">
+                                                                    <FormControl><Input {...form.register(`questions.${index}.options.0`)} placeholder="Opsi 1 (Jawaban Benar)" onChange={e => form.setValue(`questions.${index}.correctAnswer`, e.target.value)}/></FormControl>
+                                                                    <FormControl><Input {...form.register(`questions.${index}.options.1`)} placeholder="Opsi 2"/></FormControl>
+                                                                    <FormControl><Input {...form.register(`questions.${index}.options.2`)} placeholder="Opsi 3 (opsional)"/></FormControl>
+                                                                    <FormControl><Input {...form.register(`questions.${index}.options.3`)} placeholder="Opsi 4 (opsional)"/></FormControl>
+                                                                </div>
+                                                            <FormMessage />
+                                                            </FormItem>
+                                                        )} />
+                                                        
+                                                        <Button type="button" variant="destructive" size="sm" onClick={() => remove(index)} className="absolute top-2 right-2">Hapus</Button>
+                                                    </div>
+                                                ))}
+                                                <Button type="button" variant="outline" onClick={() => append({ question: "", options: ["", ""], correctAnswer: "" })}>Tambah Pertanyaan</Button>
+                                            </div>
+                                            
+                                            <DialogFooter>
+                                                <DialogClose asChild><Button type="button" variant="secondary">Batal</Button></DialogClose>
+                                                <Button type="submit" disabled={isSubmitting}>
+                                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                    Simpan Kuis
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </Form>
+                                </DialogContent>
+                            </Dialog>
+
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
@@ -109,7 +251,7 @@ export default function AdminPage() {
                                 <Button
                                     variant="outline"
                                     onClick={() => setQuizPage(prev => Math.min(prev + 1, totalQuizPages))}
-                                    disabled={quizPage === totalQuizPages}
+                                    disabled={quizPage === totalQuizPages || totalQuizPages === 0}
                                 >
                                     Selanjutnya
                                 </Button>
@@ -136,7 +278,7 @@ export default function AdminPage() {
                                 {displayedAttempts.length > 0 ? displayedAttempts.map((attempt, index) => (
                                     <TableRow key={index}>
                                         <TableCell>{attempt.userEmail}</TableCell>
-                                        <TableCell>{quizGroups.find(qg => qg.id === attempt.quizId)?.title || 'N/A'}</TableCell>
+                                        <TableCell>{quizzes.find(qg => qg.id === attempt.quizId)?.title || 'N/A'}</TableCell>
                                         <TableCell>{attempt.score.toFixed(0)}%</TableCell>
                                         <TableCell>
                                             <span className={attempt.passed ? "text-green-600 font-bold" : "text-destructive font-bold"}>
@@ -178,3 +320,5 @@ export default function AdminPage() {
         </div>
     )
 }
+
+    

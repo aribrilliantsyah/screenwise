@@ -15,7 +15,7 @@ export interface QuizGroup {
 }
 
 
-export const quizGroups: QuizGroup[] = [
+const initialQuizGroups: QuizGroup[] = [
   {
     id: "pengetahuan-umum",
     title: "Kuis Pengetahuan Umum",
@@ -84,6 +84,38 @@ export const quizGroups: QuizGroup[] = [
   }
 ];
 
+const QUIZZES_KEY = 'screenwise_quizzes';
+
+// Fungsi untuk mendapatkan kuis, menginisialisasi jika belum ada di localStorage
+export const getQuizGroups = (): QuizGroup[] => {
+  if (typeof window === 'undefined') return initialQuizGroups; // Return default for SSR
+  try {
+    const quizzesRaw = localStorage.getItem(QUIZZES_KEY);
+    if (!quizzesRaw) {
+      // Jika tidak ada di local storage, simpan data awal
+      localStorage.setItem(QUIZZES_KEY, JSON.stringify(initialQuizGroups));
+      return initialQuizGroups;
+    }
+    return JSON.parse(quizzesRaw);
+  } catch (error) {
+    console.error("Failed to parse quizzes from localStorage", error);
+    return initialQuizGroups;
+  }
+};
+
+// Fungsi untuk menyimpan kuis ke localStorage
+export const saveQuizGroups = (quizzes: QuizGroup[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(QUIZZES_KEY, JSON.stringify(quizzes));
+  } catch (error) {
+    console.error("Failed to save quizzes to localStorage", error);
+  }
+};
+
+// Deprecated, use getQuizGroups() instead
+export const quizGroups = getQuizGroups();
+
 
 export const MOCK_SUBMISSIONS = [
     {
@@ -118,5 +150,6 @@ export const PASSING_SCORE_PERCENTAGE = 60;
 export const QUIZ_TIME_SECONDS = 300; 
 
 // Deprecated, use quizGroups instead
-export const quizQuestions = quizGroups[0].questions;
+export const quizQuestions = initialQuizGroups[0].questions;
 
+    
