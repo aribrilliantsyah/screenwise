@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
@@ -76,7 +77,7 @@ export default function DashboardPage() {
                         <CardTitle className="flex items-center gap-2"><BookOpen className="text-primary"/>{quiz.title}</CardTitle>
                         <CardDescription className="mt-2">{quiz.description}</CardDescription>
                     </div>
-                    {hasAttempted && (
+                    {hasAttempted && status && (
                         <Badge variant={status.passed ? "default" : "destructive"} className={status.passed ? 'bg-green-500' : ''}>
                           {status.passed ? 'Lulus' : 'Gagal'}
                         </Badge>
