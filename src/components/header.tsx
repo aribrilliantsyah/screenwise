@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/auth-context";
+import { useRouter } from "next/navigation";
 
 export function Header() {
+  const { user, isAdmin, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
 
   return (
     <header className="bg-background/80 backdrop-blur-sm sticky top-0 z-40 border-b">
@@ -12,9 +21,28 @@ export function Header() {
           ScreenWise
         </Link>
         <div className="flex items-center gap-4">
-          <Button asChild>
-            <Link href="/quiz">Ikuti Kuis</Link>
-          </Button>
+          {!user ? (
+            <>
+              <Button variant="ghost" asChild>
+                <Link href="/login">Masuk</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/signup">Daftar</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              {isAdmin && (
+                 <Button variant="outline" asChild>
+                    <Link href="/admin">Dasbor Admin</Link>
+                 </Button>
+              )}
+              <Button variant="outline" asChild>
+                <Link href="/quiz">Ikuti Kuis</Link>
+              </Button>
+              <Button onClick={handleLogout}>Keluar</Button>
+            </>
+          )}
         </div>
       </div>
     </header>

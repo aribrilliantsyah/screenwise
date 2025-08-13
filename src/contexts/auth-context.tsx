@@ -1,42 +1,63 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { User } from 'firebase/auth';
-import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { localAuth, type User } from '@/lib/auth';
 
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
-  signOut: () => Promise<void>;
+  login: (email: string, pass: string) => boolean;
+  signup: (email: string, pass: string) => boolean;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setIsAdmin(user?.email === 'admin@screenwise.com');
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    // Coba ambil sesi pengguna saat aplikasi dimuat
+    const sessionUser = localAuth.getSession();
+    if (sessionUser) {
+      setUser(sessionUser);
+    }
+    // Buat pengguna admin default jika belum ada
+    localAuth.createDefaultAdmin();
+    setLoading(false);
   }, []);
 
-  const signOut = async () => {
-    await firebaseSignOut(auth);
-    router.push('/login');
+  const login = (email: string, pass: string): boolean => {
+    const loggedInUser = localAuth.login(email, pass);
+    if (loggedInUser) {
+      setUser(loggedInUser);
+      return true;
+    }
+    return false;
   };
 
-  const value = { user, isAdmin, loading, signOut };
+  const signup = (email: string, pass: string): boolean => {
+    const newUser = localAuth.signup(email, pass);
+    if (newUser) {
+      setUser(newUser);
+      return true;
+    }
+    return false;
+  };
+
+  const logout = () => {
+    localAuth.logout();
+    setUser(null);
+    router.push('/login');
+  };
+  
+  const isAdmin = user?.email === 'admin@screenwise.com';
+
+  const value = { user, isAdmin, loading, login, signup, logout };
 
   return (
     <AuthContext.Provider value={value}>

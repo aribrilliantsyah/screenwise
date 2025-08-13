@@ -9,8 +9,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Timer } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function QuizClient() {
+  const { user } = useAuth();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(QUIZ_TIME_SECONDS);
   const router = useRouter();
@@ -35,12 +37,12 @@ export default function QuizClient() {
   };
   
   const handleSubmit = () => {
-    const anonUserId = localStorage.getItem('anon_user_id');
-    if (!anonUserId) {
-      // Should not happen, but as a fallback
-      console.error("Anonymous user ID not found.");
+    if (!user) {
+      console.error("User not logged in.");
+      router.push('/login');
       return;
     }
+    
     let score = 0;
     quizQuestions.forEach((q) => {
       if (answers[q.id] === q.correctAnswer) {
@@ -58,7 +60,14 @@ export default function QuizClient() {
       timestamp: new Date().toISOString(),
     };
 
-    localStorage.setItem(`quiz_attempt_${anonUserId}`, JSON.stringify(attemptData));
+    localStorage.setItem(`quiz_attempt_${user.email}`, JSON.stringify(attemptData));
+    
+    // Simpan juga percobaan di bawah daftar semua percobaan
+    const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
+    const allAttempts = allAttemptsRaw ? JSON.parse(allAttemptsRaw) : [];
+    allAttempts.push({ userEmail: user.email, ...attemptData });
+    localStorage.setItem('all_quiz_attempts', JSON.stringify(allAttempts));
+
     router.push("/quiz/results");
   };
 

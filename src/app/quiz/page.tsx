@@ -4,30 +4,32 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import QuizClient from "@/components/quiz/quiz-client";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function QuizPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<'loading' | 'attempted' | 'ready'>('loading');
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    // Unique user ID for anonymous users, can be a simple timestamp or random string
-    const anonUserId = localStorage.getItem('anon_user_id') || `anon_${Date.now()}`;
-    if (!localStorage.getItem('anon_user_id')) {
-      localStorage.setItem('anon_user_id', anonUserId);
+    if (!loading && !user) {
+      router.push("/login");
     }
-    
-    const attempt = localStorage.getItem(`quiz_attempt_${anonUserId}`);
-    if (attempt) {
-      setStatus('attempted');
-      router.push("/quiz/results");
-    } else {
-      setStatus('ready');
-    }
-  }, [router]);
+  }, [user, loading, router]);
   
-  if (status === 'loading' || status === 'attempted') {
+  if (loading || !user) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Cek apakah pengguna saat ini sudah pernah mencoba kuis
+  const attempt = localStorage.getItem(`quiz_attempt_${user.email}`);
+  if (attempt) {
+    router.push("/quiz/results");
+    return (
+       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
       </div>
     );

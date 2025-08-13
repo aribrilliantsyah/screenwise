@@ -7,7 +7,7 @@ export default function LoginPage() {
     <div className="container flex h-[calc(100vh-4rem)] items-center justify-center">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold font-headline">Login</CardTitle>
+          <CardTitle className="text-2xl font-bold font-headline">Masuk</CardTitle>
           <CardDescription>
             Masukkan email Anda di bawah ini untuk masuk ke akun Anda
           </CardDescription>

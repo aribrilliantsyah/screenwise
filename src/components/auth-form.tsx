@@ -4,11 +4,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-} from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Alamat email tidak valid." }),
@@ -38,6 +34,7 @@ export function AuthForm({ variant }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { login, signup } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,33 +47,27 @@ export function AuthForm({ variant }: AuthFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
+      let success = false;
       if (variant === "signup") {
-        await createUserWithEmailAndPassword(
-          auth,
-          values.email,
-          values.password
-        );
-        router.push("/quiz");
+        success = signup(values.email, values.password);
+        if (!success) throw new Error("Email ini sudah terdaftar. Silakan masuk.");
       } else {
-        await signInWithEmailAndPassword(auth, values.email, values.password);
+        success = login(values.email, values.password);
+        if (!success) throw new Error("Email atau kata sandi salah.");
+      }
+      
+      if (success) {
         if (values.email === 'admin@screenwise.com') {
-          router.push("/");
+            router.push("/admin");
         } else {
-          router.push("/quiz");
+            router.push("/quiz");
         }
       }
     } catch (error: any) {
-      let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = "Email ini sudah terdaftar. Silakan login.";
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        errorMessage = "Email atau kata sandi salah.";
-      }
-
       toast({
         variant: "destructive",
         title: "Autentikasi gagal",
-        description: errorMessage,
+        description: error.message || "Terjadi kesalahan. Silakan coba lagi.",
       });
     } finally {
       setLoading(false);
