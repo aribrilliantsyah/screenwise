@@ -60,10 +60,12 @@ export function AuthForm({ variant }: AuthFormProps) {
   const { toast } = useToast();
   const { login, signup } = useAuth();
   
-  const formSchema = variant === 'signup' ? signupSchema : loginSchema;
+  const currentValidationSchema = variant === 'signup' 
+      ? (step === 1 ? step1Schema : step2Schema) 
+      : loginSchema;
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm({
+    resolver: zodResolver(currentValidationSchema),
     defaultValues: {
       email: "",
       password: "",
@@ -89,7 +91,9 @@ export function AuthForm({ variant }: AuthFormProps) {
     try {
       let success = false;
       if (variant === "signup") {
-        success = signup(values as z.infer<typeof signupSchema>);
+        // Gabungkan data dari semua langkah sebelum submit
+        const finalData = { ...form.getValues(), ...values };
+        success = signup(finalData as z.infer<typeof signupSchema>);
         if (!success) throw new Error("Email ini sudah terdaftar. Silakan masuk.");
       } else {
         success = login(values.email, values.password);
@@ -117,6 +121,8 @@ export function AuthForm({ variant }: AuthFormProps) {
       setLoading(false);
     }
   }
+
+  const formSchema = variant === 'signup' ? signupSchema : loginSchema;
 
   if (variant === 'login') {
     return (
@@ -328,5 +334,3 @@ export function AuthForm({ variant }: AuthFormProps) {
     </Form>
   );
 }
-
-    
