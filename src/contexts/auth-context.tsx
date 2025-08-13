@@ -1,15 +1,16 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { localAuth, type User } from '@/lib/auth';
+import { localAuth, type User, type SignupData } from '@/lib/auth';
 
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
   login: (email: string, pass: string) => boolean;
-  signup: (email: string, pass: string) => boolean;
+  signup: (data: SignupData) => boolean;
   logout: () => void;
 }
 
@@ -40,8 +41,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
-  const signup = (email: string, pass: string): boolean => {
-    const newUser = localAuth.signup(email, pass);
+  const signup = (data: SignupData): boolean => {
+    const newUser = localAuth.signup(data);
     if (newUser) {
       setUser(newUser);
       return true;

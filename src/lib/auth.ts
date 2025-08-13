@@ -1,20 +1,30 @@
+
 // WARNING: This is an insecure, demonstration-only authentication system.
 // Do NOT use this in a production environment. Passwords are stored in plaintext.
 
 export interface User {
   email: string;
+  name: string;
+  address: string;
+  company?: string;
+  gender: "Laki-laki" | "Perempuan";
+  whatsapp: string;
+  phone: string;
 }
+
+export type SignupData = User & { password: string };
+type StoredUser = SignupData;
 
 const USERS_KEY = 'screenwise_users';
 const SESSION_KEY = 'screenwise_session';
 
-const getStoredUsers = (): (User & {password: string})[] => {
+const getStoredUsers = (): StoredUser[] => {
   if (typeof window === 'undefined') return [];
   const usersRaw = localStorage.getItem(USERS_KEY);
   return usersRaw ? JSON.parse(usersRaw) : [];
 };
 
-const setStoredUsers = (users: (User & {password: string})[]) => {
+const setStoredUsers = (users: StoredUser[]) => {
   if (typeof window === 'undefined') return;
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 };
@@ -24,32 +34,42 @@ export const localAuth = {
     const users = getStoredUsers();
     const adminExists = users.some(u => u.email === 'admin@screenwise.com');
     if (!adminExists) {
-      users.push({ email: 'admin@screenwise.com', password: 'rahasia' });
+      users.push({ 
+        email: 'admin@screenwise.com', 
+        password: 'rahasia',
+        name: 'Admin',
+        address: 'Kantor Pusat',
+        gender: 'Laki-laki',
+        whatsapp: '0',
+        phone: '0'
+      });
       setStoredUsers(users);
     }
   },
   
-  signup: (email: string, password: string): User | null => {
+  signup: (data: SignupData): User | null => {
     const users = getStoredUsers();
-    const userExists = users.some(u => u.email === email);
+    const userExists = users.some(u => u.email === data.email);
     if (userExists) {
       return null; // Pengguna sudah ada
     }
-    const newUser = { email, password };
-    users.push(newUser);
+    
+    users.push(data);
     setStoredUsers(users);
     
     // Langsung login setelah daftar
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ email }));
-    return { email };
+    const { password, ...userWithoutPassword } = data;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(userWithoutPassword));
+    return userWithoutPassword;
   },
 
   login: (email: string, password: string): User | null => {
     const users = getStoredUsers();
     const foundUser = users.find(u => u.email === email && u.password === password);
     if (foundUser) {
-      localStorage.setItem(SESSION_KEY, JSON.stringify({ email }));
-      return { email };
+      const { password, ...userWithoutPassword } = foundUser;
+      localStorage.setItem(SESSION_KEY, JSON.stringify(userWithoutPassword));
+      return userWithoutPassword;
     }
     return null;
   },

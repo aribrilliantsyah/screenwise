@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -18,13 +19,26 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
-const formSchema = z.object({
+const baseSchema = {
   email: z.string().email({ message: "Alamat email tidak valid." }),
   password: z
     .string()
     .min(6, { message: "Kata sandi minimal harus 6 karakter." }),
+};
+
+const signupSchema = z.object({
+  ...baseSchema,
+  name: z.string().min(1, { message: "Nama lengkap harus diisi." }),
+  address: z.string().min(1, { message: "Alamat harus diisi." }),
+  company: z.string().optional(),
+  gender: z.enum(["Laki-laki", "Perempuan"], { required_error: "Jenis kelamin harus dipilih." }),
+  whatsapp: z.string().min(10, { message: "Nomor WhatsApp tidak valid." }),
+  phone: z.string().min(10, { message: "Nomor HP tidak valid." }),
 });
+
+const loginSchema = z.object(baseSchema);
 
 type AuthFormProps = {
   variant: "login" | "signup";
@@ -35,12 +49,22 @@ export function AuthForm({ variant }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { login, signup } = useAuth();
+  
+  const formSchema = variant === 'signup' ? signupSchema : loginSchema;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
       password: "",
+      ...(variant === 'signup' && {
+        name: "",
+        address: "",
+        company: "",
+        gender: undefined,
+        whatsapp: "",
+        phone: "",
+      })
     },
   });
 
@@ -49,7 +73,7 @@ export function AuthForm({ variant }: AuthFormProps) {
     try {
       let success = false;
       if (variant === "signup") {
-        success = signup(values.email, values.password);
+        success = signup(values as z.infer<typeof signupSchema>);
         if (!success) throw new Error("Email ini sudah terdaftar. Silakan masuk.");
       } else {
         success = login(values.email, values.password);
@@ -76,7 +100,22 @@ export function AuthForm({ variant }: AuthFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {variant === 'signup' && (
+             <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Nama Lengkap</FormLabel>
+                    <FormControl>
+                    <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        )}
         <FormField
           control={form.control}
           name="email"
@@ -103,6 +142,92 @@ export function AuthForm({ variant }: AuthFormProps) {
             </FormItem>
           )}
         />
+        {variant === 'signup' && (
+          <>
+            <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Alamat</FormLabel>
+                    <FormControl>
+                    <Input placeholder="Jl. Pahlawan No. 10" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="company"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Asal Perusahaan (Opsional)</FormLabel>
+                    <FormControl>
+                    <Input placeholder="PT Teknologi Maju" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="gender"
+                render={({ field }) => (
+                <FormItem className="space-y-3">
+                    <FormLabel>Jenis Kelamin</FormLabel>
+                    <FormControl>
+                    <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex space-x-4"
+                    >
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                            <RadioGroupItem value="Laki-laki" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Laki-laki</FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                            <RadioGroupItem value="Perempuan" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Perempuan</FormLabel>
+                        </FormItem>
+                    </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="whatsapp"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Nomor WhatsApp</FormLabel>
+                    <FormControl>
+                    <Input type="tel" placeholder="081234567890" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Nomor HP</FormLabel>
+                    <FormControl>
+                    <Input type="tel" placeholder="081234567890" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+          </>
+        )}
         <Button type="submit" className="w-full" disabled={loading}>
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {variant === "signup" ? "Buat Akun" : "Masuk"}

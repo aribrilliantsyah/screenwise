@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { quizGroups } from "@/data/quiz-data";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Loader2, PlayCircle, CheckCircle, XCircle, ChevronRight, BookOpen } from "lucide-react";
+import { Loader2, PlayCircle, CheckCircle, Award, Clock, HelpCircle, BarChart2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -61,7 +61,7 @@ export default function DashboardPage() {
     <div className="container mx-auto py-10 px-4">
       <div className="mb-8">
         <h1 className="text-4xl font-bold font-headline">Dasbor Peserta</h1>
-        <p className="text-lg text-muted-foreground">Selamat datang, {user.email}! Pilih kuis untuk memulai.</p>
+        <p className="text-lg text-muted-foreground">Selamat datang, {user.name}! Pilih kuis untuk memulai.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -70,32 +70,39 @@ export default function DashboardPage() {
           const hasAttempted = status !== null;
 
           return (
-            <Card key={quiz.id} className="flex flex-col">
+            <Card key={quiz.id} className="flex flex-col transition-shadow duration-300 hover:shadow-lg">
               <CardHeader>
                 <div className="flex items-start justify-between">
                     <div>
-                        <CardTitle className="flex items-center gap-2"><BookOpen className="text-primary"/>{quiz.title}</CardTitle>
-                        <CardDescription className="mt-2">{quiz.description}</CardDescription>
+                        <CardTitle className="text-xl font-bold">{quiz.title}</CardTitle>
+                        <CardDescription className="mt-1">{quiz.description}</CardDescription>
                     </div>
-                    {hasAttempted && status && (
-                        <Badge variant={status.passed ? "default" : "destructive"} className={status.passed ? 'bg-green-500' : ''}>
+                     {hasAttempted && status && (
+                        <Badge variant={status.passed ? 'default' : 'destructive'} className={status.passed ? 'bg-green-600' : ''}>
                           {status.passed ? 'Lulus' : 'Gagal'}
                         </Badge>
                     )}
                 </div>
               </CardHeader>
-              <CardContent className="flex-grow">
-                 <div className="text-sm text-muted-foreground">
-                    <p>Jumlah Soal: {quiz.questions.length}</p>
-                    <p>Waktu: {quiz.timeLimitSeconds / 60} menit</p>
-                    <p>Skor Kelulusan: {quiz.passingScore}%</p>
+              <CardContent className="flex-grow space-y-3">
+                 <div className="flex items-center text-sm text-muted-foreground gap-2">
+                    <HelpCircle className="h-4 w-4 text-primary" /> 
+                    <span>{quiz.questions.length} soal</span>
+                 </div>
+                 <div className="flex items-center text-sm text-muted-foreground gap-2">
+                    <Clock className="h-4 w-4 text-primary" /> 
+                    <span>{quiz.timeLimitSeconds / 60} menit</span>
+                 </div>
+                 <div className="flex items-center text-sm text-muted-foreground gap-2">
+                    <Award className="h-4 w-4 text-primary" /> 
+                    <span>Skor kelulusan: {quiz.passingScore}%</span>
                  </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="bg-muted/50 p-4">
                 {hasAttempted ? (
-                  <Button asChild className="w-full">
+                  <Button asChild className="w-full" variant="secondary">
                     <Link href={`/quiz/results?quizId=${quiz.id}`}>
-                      <CheckCircle /> Lihat Hasil
+                      <BarChart2 /> Lihat Hasil
                     </Link>
                   </Button>
                 ) : (
