@@ -1,9 +1,22 @@
+
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function Home() {
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const handleLoginClick = () => {
+    setIsLoading(true);
+    router.push('/login');
+  };
+
   return (
     <div className="container mx-auto px-4 py-12 md:px-6 md:py-20">
       <div className="grid gap-8 md:grid-cols-2 md:items-center">
@@ -14,8 +27,15 @@ export default function Home() {
           <p className="text-lg text-muted-foreground">
             Selamat datang, silakan melengkapi data terlebih dahulu dan mulai kuis.
           </p>
-          <Button asChild size="lg">
-            <Link href="/login">Masuk untuk Memulai</Link>
+          <Button onClick={handleLoginClick} size="lg" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Mengarahkan...
+              </>
+            ) : (
+              "Masuk untuk Memulai"
+            )}
           </Button>
         </div>
         <Card>

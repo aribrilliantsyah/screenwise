@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const { user, loading, isAdmin } = useAuth();
   const router = useRouter();
   const [attemptStatus, setAttemptStatus] = useState<AttemptStatus>({});
+  const [loadingQuiz, setLoadingQuiz] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading) {
@@ -48,6 +49,11 @@ export default function DashboardPage() {
       setAttemptStatus(status);
     }
   }, [user]);
+
+  const handleNavigation = (quizId: string, path: string) => {
+    setLoadingQuiz(quizId);
+    router.push(path);
+  };
 
   if (loading || !user || isAdmin) {
     return (
@@ -92,10 +98,13 @@ export default function DashboardPage() {
                    </div>
                 </CardContent>
                 <CardFooter className="bg-muted/50 p-4">
-                  <Button asChild className="w-full">
-                    <Link href={`/quiz/${quiz.id}`}>
-                      <PlayCircle /> Mulai Kuis
-                    </Link>
+                  <Button onClick={() => handleNavigation(quiz.id, `/quiz/${quiz.id}`)} className="w-full" disabled={!!loadingQuiz}>
+                    {loadingQuiz === quiz.id ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <PlayCircle />
+                    )}
+                     Mulai Kuis
                   </Button>
                 </CardFooter>
               </Card>
@@ -142,10 +151,13 @@ export default function DashboardPage() {
                    </div>
                 </CardContent>
                 <CardFooter className="bg-muted/50 p-4">
-                  <Button asChild className="w-full" variant="secondary">
-                    <Link href={`/quiz/results?quizId=${quiz.id}`}>
-                      <BarChart2 /> Lihat Hasil
-                    </Link>
+                  <Button onClick={() => handleNavigation(quiz.id, `/quiz/results?quizId=${quiz.id}`)} className="w-full" variant="secondary" disabled={!!loadingQuiz}>
+                     {loadingQuiz === quiz.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <BarChart2 />
+                      )}
+                      Lihat Hasil
                   </Button>
                 </CardFooter>
               </Card>
