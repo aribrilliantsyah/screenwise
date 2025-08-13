@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { analyzeQuizPerformance, type AnalyzeQuizPerformanceOutput } from "@/ai/flows/analyze-quiz-performance";
-import { MOCK_SUBMISSIONS, getQuizGroups } from "@/data/quiz-data";
+import { MOCK_SUBMISSIONS, getQuizGroups, type QuizGroup } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, BrainCircuit, Lightbulb, CheckCircle, XCircle } from "lucide-react";
@@ -30,9 +30,14 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [allQuizzes, setAllQuizzes] = useState<QuizGroup[]>([]);
 
-  const allQuizzes = getQuizGroups();
   const quizId = searchParams.get('quizId');
+
+  useEffect(() => {
+    setAllQuizzes(getQuizGroups());
+  }, []);
+
   const quiz = useMemo(() => allQuizzes.find(q => q.id === quizId), [quizId, allQuizzes]);
 
   useEffect(() => {
@@ -53,7 +58,7 @@ export default function ResultsPage() {
       setAttempt(parsedAttempt);
       fetchAnalysis(parsedAttempt, user.email, quiz);
       setLoading(false);
-    } else {
+    } else if(quiz) { // Hanya redirect jika quiz sudah dimuat tapi attempt tidak ada
       // Jika tidak ada percobaan, mungkin pengguna mencoba mengakses langsung.
       // Arahkan ke dasbor agar mereka bisa memilih kuis.
       router.push(`/dashboard`);
@@ -192,5 +197,3 @@ export default function ResultsPage() {
     </div>
   );
 }
-
-    

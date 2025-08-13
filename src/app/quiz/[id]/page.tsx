@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo } from "react";
 import QuizClient from "@/components/quiz/quiz-client";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { getQuizGroups } from "@/data/quiz-data";
+import { getQuizGroups, type QuizGroup } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
 
 export default function DynamicQuizPage() {
@@ -14,8 +14,13 @@ export default function DynamicQuizPage() {
   const params = useParams();
   const { user, loading } = useAuth();
   
-  const allQuizzes = getQuizGroups();
+  const [allQuizzes, setAllQuizzes] = useState<QuizGroup[]>([]);
   const quizId = Array.isArray(params.id) ? params.id[0] : params.id;
+  
+  useEffect(() => {
+    setAllQuizzes(getQuizGroups());
+  }, []);
+  
   const quiz = useMemo(() => allQuizzes.find(q => q.id === quizId), [quizId, allQuizzes]);
 
   useEffect(() => {
@@ -60,5 +65,3 @@ export default function DynamicQuizPage() {
 
   return <QuizClient quiz={quiz} />;
 }
-
-    

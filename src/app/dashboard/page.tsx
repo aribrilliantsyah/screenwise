@@ -2,7 +2,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import { getQuizGroups } from "@/data/quiz-data";
+import { getQuizGroups, type QuizGroup } from "@/data/quiz-data";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2, PlayCircle, BarChart2, HelpCircle, Clock, Award, LucideRedo, CheckCheck, ClipboardList, List } from "lucide-react";
@@ -28,11 +28,11 @@ interface ActiveQuizSession {
 export default function DashboardPage() {
   const { user, loading, isAdmin } = useAuth();
   const router = useRouter();
+  const [allQuizzes, setAllQuizzes] = useState<QuizGroup[]>([]);
   const [attemptStatus, setAttemptStatus] = useState<AttemptStatus>({});
   const [activeSession, setActiveSession] = useState<ActiveQuizSession | null>(null);
   const [loadingQuiz, setLoadingQuiz] = useState<string | null>(null);
   
-  const allQuizzes = getQuizGroups();
 
   useEffect(() => {
     if (!loading) {
@@ -45,10 +45,14 @@ export default function DashboardPage() {
   }, [user, loading, isAdmin, router]);
 
   useEffect(() => {
+    // Memuat data dari localStorage di dalam useEffect untuk mencegah infinite loop
+    const quizzes = getQuizGroups();
+    setAllQuizzes(quizzes);
+
     if (user) {
       // Load attempt history
       const status: AttemptStatus = {};
-      allQuizzes.forEach(quiz => {
+      quizzes.forEach(quiz => {
         const attemptRaw = localStorage.getItem(`quiz_attempt_${user.email}_${quiz.id}`);
         if (attemptRaw) {
           const attempt = JSON.parse(attemptRaw);
@@ -65,7 +69,7 @@ export default function DashboardPage() {
           setActiveSession(JSON.parse(activeSessionRaw));
       }
     }
-  }, [user, allQuizzes]);
+  }, [user]);
 
   const handleNavigation = (quizId: string, path: string) => {
     setLoadingQuiz(quizId);
@@ -206,5 +210,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
