@@ -175,7 +175,7 @@ export default function AdminPage() {
                                 <DialogTrigger asChild>
                                     <Button className="w-fit"><PlusCircle /> Tambah Kuis Baru</Button>
                                 </DialogTrigger>
-                                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                                <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                                     <DialogHeader>
                                         <DialogTitle>Tambah Kuis Baru</DialogTitle>
                                         <DialogDescription>
@@ -320,5 +320,3 @@ export default function AdminPage() {
         </div>
     )
 }
-
-    
