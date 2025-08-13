@@ -54,8 +54,10 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                         <Avatar className="h-10 w-10">
-                            <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${user.name}`} alt={user.name} />
-                            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                            {/* Menghapus AvatarImage dan menggunakan AvatarFallback dengan ikon */}
+                            <AvatarFallback>
+                                <UserIcon className="h-6 w-6"/>
+                            </AvatarFallback>
                         </Avatar>
                     </Button>
                 </DropdownMenuTrigger>
