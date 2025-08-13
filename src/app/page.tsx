@@ -15,7 +15,7 @@ export default function Home() {
             Uji pengetahuan Anda dan lihat seberapa baik Anda melakukannya. Platform cerdas kami tidak hanya menilai kuis Anda tetapi juga memberikan wawasan tentang kinerja Anda.
           </p>
           <Button asChild size="lg">
-            <Link href="/quiz">Mulai</Link>
+            <Link href="/login">Masuk untuk Memulai</Link>
           </Button>
         </div>
         <Card>
