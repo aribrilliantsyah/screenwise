@@ -80,7 +80,7 @@ export default function AdminPage() {
             description: "",
             passingScore: 70,
             timeLimitSeconds: 300,
-            questions: [{ question: "", options: ["", ""], correctAnswer: "" }]
+            questions: [{ question: "", options: ["", ""], correctAnswer: undefined }]
         },
     });
 
@@ -273,7 +273,7 @@ export default function AdminPage() {
                                                          <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>Tambah Opsi</Button>
                                                     </div>
                                                 ))}
-                                                <Button type="button" variant="outline" onClick={() => append({ question: "", options: ["", ""], correctAnswer: "" })}>Tambah Pertanyaan</Button>
+                                                <Button type="button" variant="outline" onClick={() => append({ question: "", options: ["", ""], correctAnswer: undefined })}>Tambah Pertanyaan</Button>
                                             </div>
                                             
                                             <DialogFooter>
