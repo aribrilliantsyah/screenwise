@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -70,17 +70,17 @@ export default function ProfilePage() {
     });
 
     // Efek untuk mereset form jika user berubah (misal setelah login)
-    useState(() => {
+    useEffect(() => {
         if(user) {
             profileForm.reset({
-                name: user.name,
-                address: user.address,
-                company: user.company,
-                whatsapp: user.whatsapp,
-                phone: user.phone,
+                name: user.name || "",
+                address: user.address || "",
+                company: user.company || "",
+                whatsapp: user.whatsapp || "",
+                phone: user.phone || "",
             });
         }
-    });
+    }, [user, profileForm]);
 
     if (authLoading) {
         return (
@@ -291,4 +291,3 @@ export default function ProfilePage() {
         </div>
     )
 }
-
