@@ -13,8 +13,8 @@ export interface User {
 }
 
 export type UpdateUserData = Omit<User, 'email' | 'gender'>;
-export type SignupData = User & { password: string };
-type StoredUser = SignupData;
+export type SignupData = User & { password: string, confirmPassword?: string };
+type StoredUser = User & { password: string };
 
 const USERS_KEY = 'screenwise_users';
 const SESSION_KEY = 'screenwise_session';
@@ -55,11 +55,13 @@ export const localAuth = {
       return null; // Pengguna sudah ada
     }
     
-    users.push(data);
+    // Hapus confirmPassword sebelum menyimpan
+    const { confirmPassword, ...newUser } = data;
+    users.push(newUser);
     setStoredUsers(users);
     
     // Langsung login setelah daftar
-    const { password, ...userWithoutPassword } = data;
+    const { password, ...userWithoutPassword } = newUser;
     localStorage.setItem(SESSION_KEY, JSON.stringify(userWithoutPassword));
     return userWithoutPassword;
   },
@@ -126,3 +128,5 @@ export const localAuth = {
       return true;
   }
 };
+
+    
