@@ -78,7 +78,7 @@ export function AuthForm({ variant }: AuthFormProps) {
   });
 
   const handleNext = async () => {
-    const isValid = await form.trigger(step1Schema.keyof()._def.values);
+    const isValid = await form.trigger(["name", "address", "company", "gender", "whatsapp", "phone"]);
     if(isValid) {
         setStep(2);
     }
@@ -328,3 +328,5 @@ export function AuthForm({ variant }: AuthFormProps) {
     </Form>
   );
 }
+
+    
