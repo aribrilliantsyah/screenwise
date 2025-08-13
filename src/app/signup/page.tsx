@@ -4,8 +4,8 @@ import Link from "next/link";
 
 export default function SignupPage() {
   return (
-    <div className="container flex h-[calc(100vh-4rem)] items-center justify-center">
-      <Card className="mx-auto max-w-sm w-full">
+    <div className="flex h-[calc(100vh-4rem)] items-center justify-center px-4">
+      <Card className="mx-auto w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl font-bold font-headline">Daftar</CardTitle>
           <CardDescription>
