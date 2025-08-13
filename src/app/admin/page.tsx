@@ -204,7 +204,7 @@ export default function AdminPage() {
                                                 {fields.map((item, index) => (
                                                     <div key={item.id} className="p-4 border rounded-md space-y-3 relative">
                                                         <FormField name={`questions.${index}.question`} control={form.control} render={({ field }) => (
-                                                            <FormItem><FormLabel>Pertanyaan {index + 1}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                                            <FormItem><FormLabel>Pertanyaan {index + 1}</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
                                                         )} />
                                                         
                                                         <FormField name={`questions.${index}.options`} control={form.control} render={({ field }) => (
@@ -219,7 +219,10 @@ export default function AdminPage() {
                                                             </FormItem>
                                                         )} />
                                                         
-                                                        <Button type="button" variant="destructive" size="sm" onClick={() => remove(index)} className="absolute top-2 right-2">Hapus</Button>
+                                                        <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="absolute top-2 right-2 h-7 w-7">
+                                                           <Trash2 className="h-4 w-4" />
+                                                           <span className="sr-only">Hapus Pertanyaan</span>
+                                                        </Button>
                                                     </div>
                                                 ))}
                                                 <Button type="button" variant="outline" onClick={() => append({ question: "", options: ["", ""], correctAnswer: "" })}>Tambah Pertanyaan</Button>
@@ -320,3 +323,5 @@ export default function AdminPage() {
         </div>
     )
 }
+
+    
