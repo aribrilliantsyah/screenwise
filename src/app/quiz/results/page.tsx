@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { analyzeQuizPerformance, type AnalyzeQuizPerformanceOutput } from "@/ai/flows/analyze-quiz-performance";
 import { MOCK_SUBMISSIONS, PASSING_SCORE_PERCENTAGE, quizQuestions } from "@/data/quiz-data";
@@ -19,32 +18,28 @@ interface Attempt {
 }
 
 export default function ResultsPage() {
-  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [analysis, setAnalysis] = useState<AnalyzeQuizPerformanceOutput | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
+  const userId = "guest_user"; // A generic user id for non-authenticated users
 
   useEffect(() => {
-    if (!authLoading && user) {
-      const storedAttempt = localStorage.getItem(`quiz_attempt_${user.uid}`);
-      if (storedAttempt) {
-        const parsedAttempt = JSON.parse(storedAttempt);
-        setAttempt(parsedAttempt);
-        fetchAnalysis(parsedAttempt, user.uid);
-      } else {
-        router.push("/quiz");
-      }
-    } else if (!authLoading && !user) {
-        router.push("/login");
+    const storedAttempt = localStorage.getItem(`quiz_attempt_${userId}`);
+    if (storedAttempt) {
+      const parsedAttempt = JSON.parse(storedAttempt);
+      setAttempt(parsedAttempt);
+      fetchAnalysis(parsedAttempt, userId);
+    } else {
+      router.push("/quiz");
     }
-  }, [user, authLoading, router]);
+  }, [router]);
 
-  const fetchAnalysis = async (userAttempt: Attempt, userId: string) => {
+  const fetchAnalysis = async (userAttempt: Attempt, currentUserId: string) => {
     setLoadingAnalysis(true);
     try {
         const currentUserSubmission = {
-            userId: userId,
+            userId: currentUserId,
             answers: userAttempt.answers,
             score: userAttempt.score,
         };
@@ -65,15 +60,13 @@ export default function ResultsPage() {
   };
 
   const handleRetake = () => {
-    if (user) {
-      localStorage.removeItem(`quiz_attempt_${user.uid}`);
-      router.push("/quiz");
-    }
+    localStorage.removeItem(`quiz_attempt_${userId}`);
+    router.push("/quiz");
   };
 
   const memoizedQuizQuestions = useMemo(() => quizQuestions, []);
 
-  if (authLoading || !attempt) {
+  if (!attempt) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/auth-context";
 import { quizQuestions, QUIZ_TIME_SECONDS, PASSING_SCORE_PERCENTAGE } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +14,7 @@ export default function QuizClient() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(QUIZ_TIME_SECONDS);
   const router = useRouter();
-  const { user } = useAuth();
+  const userId = "guest_user"; // A generic user id for non-authenticated users
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -36,8 +35,6 @@ export default function QuizClient() {
   };
   
   const handleSubmit = () => {
-    if (!user) return;
-
     let score = 0;
     quizQuestions.forEach((q) => {
       if (answers[q.id] === q.correctAnswer) {
@@ -55,7 +52,7 @@ export default function QuizClient() {
       timestamp: new Date().toISOString(),
     };
 
-    localStorage.setItem(`quiz_attempt_${user.uid}`, JSON.stringify(attemptData));
+    localStorage.setItem(`quiz_attempt_${userId}`, JSON.stringify(attemptData));
     router.push("/quiz/results");
   };
 
