@@ -46,14 +46,14 @@ export default function ResultsPage() {
         const allSubmissions = [...MOCK_SUBMISSIONS, currentUserSubmission];
 
       const result = await analyzeQuizPerformance({
-        quizName: "Knowledge Quiz",
+        quizName: "Kuis Pengetahuan",
         submissions: allSubmissions,
         highPerformanceThreshold: PASSING_SCORE_PERCENTAGE,
       });
       setAnalysis(result);
     } catch (error) {
-      console.error("Failed to get AI analysis:", error);
-      setAnalysis({ keyInsights: "Could not retrieve analysis.", suggestedImprovements: "Please try again later." });
+      console.error("Gagal mendapatkan analisis AI:", error);
+      setAnalysis({ keyInsights: "Tidak dapat mengambil analisis.", suggestedImprovements: "Silakan coba lagi nanti." });
     } finally {
       setLoadingAnalysis(false);
     }
@@ -84,17 +84,17 @@ export default function ResultsPage() {
             <XCircle className="h-16 w-16 text-destructive" />
           )}
           <CardTitle className="text-3xl font-bold font-headline mt-4">
-            Quiz Results
+            Hasil Kuis
           </CardTitle>
           <CardDescription className="text-xl">
-            You scored {attempt.score.toFixed(0)}% and you <span className={attempt.passed ? "font-bold text-green-600" : "font-bold text-destructive"}>{attempt.passed ? "Passed" : "Failed"}</span>.
+            Anda mendapat skor {attempt.score.toFixed(0)}% dan Anda <span className={attempt.passed ? "font-bold text-green-600" : "font-bold text-destructive"}>{attempt.passed ? "Lulus" : "Gagal"}</span>.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
             <div className="grid gap-6 md:grid-cols-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><BrainCircuit className="h-6 w-6 text-primary"/> Key Insights</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><BrainCircuit className="h-6 w-6 text-primary"/> Wawasan Utama</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {loadingAnalysis ? (
@@ -110,7 +110,7 @@ export default function ResultsPage() {
                 </Card>
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Lightbulb className="h-6 w-6 text-accent"/> Suggested Improvements</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><Lightbulb className="h-6 w-6 text-accent"/> Saran Perbaikan</CardTitle>
                     </CardHeader>
                     <CardContent>
                          {loadingAnalysis ? (
@@ -126,18 +126,18 @@ export default function ResultsPage() {
                 </Card>
             </div>
             <div>
-                 <h3 className="text-xl font-semibold mb-4 text-center">Your Answers</h3>
+                 <h3 className="text-xl font-semibold mb-4 text-center">Jawaban Anda</h3>
                  <div className="space-y-4">
                  {memoizedQuizQuestions.map((q) => {
-                     const userAnswer = attempt.answers[q.id] || "Not answered";
+                     const userAnswer = attempt.answers[q.id] || "Tidak dijawab";
                      const isCorrect = userAnswer === q.correctAnswer;
                      return (
                          <Alert key={q.id} variant={isCorrect ? "default" : "destructive"} className="bg-background/70">
                              {isCorrect ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                              <AlertTitle>{q.question}</AlertTitle>
                              <AlertDescription>
-                                 Your answer: <span className="font-semibold">{userAnswer}</span>
-                                 {!isCorrect && <span className="ml-2">| Correct answer: <span className="font-semibold">{q.correctAnswer}</span></span>}
+                                 Jawaban Anda: <span className="font-semibold">{userAnswer}</span>
+                                 {!isCorrect && <span className="ml-2">| Jawaban benar: <span className="font-semibold">{q.correctAnswer}</span></span>}
                              </AlertDescription>
                          </Alert>
                      )
@@ -146,7 +146,7 @@ export default function ResultsPage() {
             </div>
 
             <div className="text-center">
-                <Button onClick={handleRetake} size="lg">Take Quiz Again</Button>
+                <Button onClick={handleRetake} size="lg">Ulangi Kuis</Button>
             </div>
         </CardContent>
       </Card>

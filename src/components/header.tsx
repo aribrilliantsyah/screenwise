@@ -12,7 +12,7 @@ export function Header() {
         </Link>
         <div className="flex items-center gap-4">
           <Button asChild>
-            <Link href="/quiz">Take the Quiz</Link>
+            <Link href="/quiz">Ikuti Kuis</Link>
           </Button>
         </div>
       </div>

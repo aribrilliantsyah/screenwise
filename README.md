@@ -1,14 +1,14 @@
 # ScreenWise
 
-This is a Next.js application built with Firebase Studio. It allows users to take a quiz, get their score, and see AI-powered analysis of their performance.
+Ini adalah aplikasi Next.js yang dibuat dengan Firebase Studio. Aplikasi ini memungkinkan pengguna untuk mengikuti kuis, mendapatkan skor, dan melihat analisis performa mereka yang didukung oleh AI.
 
-## Getting Started
+## Memulai
 
-To run the application locally:
+Untuk menjalankan aplikasi secara lokal:
 
-1. Install dependencies: `npm install`
-2. Start the development server: `npm run dev`
+1. Instal dependensi: `npm install`
+2. Jalankan server pengembangan: `npm run dev`
 
-The application will be available at `http://localhost:9002`.
+Aplikasi akan tersedia di `http://localhost:9002`.
 
-The main page is located at `src/app/page.tsx`.
+Halaman utama terletak di `src/app/page.tsx`.

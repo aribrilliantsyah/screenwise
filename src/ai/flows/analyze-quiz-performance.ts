@@ -1,33 +1,33 @@
 'use server';
 
 /**
- * @fileOverview Analyzes quiz performance to identify answer patterns correlating with high performance.
+ * @fileOverview Menganalisis kinerja kuis untuk mengidentifikasi pola jawaban yang berkorelasi dengan kinerja tinggi.
  *
- * - analyzeQuizPerformance - Analyzes quiz data and identifies patterns.
- * - AnalyzeQuizPerformanceInput - The input type for analyzeQuizPerformance function.
- * - AnalyzeQuizPerformanceOutput - The return type for analyzeQuizPerformance function.
+ * - analyzeQuizPerformance - Menganalisis data kuis dan mengidentifikasi pola.
+ * - AnalyzeQuizPerformanceInput - Tipe input untuk fungsi analyzeQuizPerformance.
+ * - AnalyzeQuizPerformanceOutput - Tipe kembalian untuk fungsi analyzeQuizPerformance.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const AnalyzeQuizPerformanceInputSchema = z.object({
-  quizName: z.string().describe('The name of the quiz to analyze.'),
+  quizName: z.string().describe('Nama kuis yang akan dianalisis.'),
   submissions: z.array(
     z.object({
-      userId: z.string().describe('The ID of the user who took the quiz.'),
-      answers: z.record(z.string(), z.string()).describe('The answers submitted by the user.'),
-      score: z.number().describe('The score achieved by the user on the quiz.'),
+      userId: z.string().describe('ID pengguna yang mengerjakan kuis.'),
+      answers: z.record(z.string(), z.string()).describe('Jawaban yang dikirimkan oleh pengguna.'),
+      score: z.number().describe('Skor yang dicapai oleh pengguna pada kuis.'),
     })
-  ).describe('An array of quiz submissions, including user ID, answers, and score.'),
-  highPerformanceThreshold: z.number().describe('The score above which a user is considered high-performing.'),
+  ).describe('Sebuah array pengiriman kuis, termasuk ID pengguna, jawaban, dan skor.'),
+  highPerformanceThreshold: z.number().describe('Skor di atas mana pengguna dianggap berkinerja tinggi.'),
 });
 
 export type AnalyzeQuizPerformanceInput = z.infer<typeof AnalyzeQuizPerformanceInputSchema>;
 
 const AnalyzeQuizPerformanceOutputSchema = z.object({
-  keyInsights: z.string().describe('Key insights into answer patterns correlating with high performance.'),
-  suggestedImprovements: z.string().describe('Suggested improvements to the quiz or curriculum based on the analysis.'),
+  keyInsights: z.string().describe('Wawasan kunci tentang pola jawaban yang berkorelasi dengan kinerja tinggi.'),
+  suggestedImprovements: z.string().describe('Saran perbaikan untuk kuis atau kurikulum berdasarkan analisis.'),
 });
 
 export type AnalyzeQuizPerformanceOutput = z.infer<typeof AnalyzeQuizPerformanceOutputSchema>;
@@ -40,25 +40,25 @@ const analyzeQuizPerformancePrompt = ai.definePrompt({
   name: 'analyzeQuizPerformancePrompt',
   input: {schema: AnalyzeQuizPerformanceInputSchema},
   output: {schema: AnalyzeQuizPerformanceOutputSchema},
-  prompt: `You are an AI assistant specializing in analyzing quiz performance data.
+  prompt: `Anda adalah asisten AI yang berspesialisasi dalam menganalisis data kinerja kuis.
 
-  You are provided with data from a quiz called "{{quizName}}". Each submission includes the user's ID, their answers to the quiz questions, and their final score.
+  Anda diberikan data dari kuis bernama "{{quizName}}". Setiap pengiriman mencakup ID pengguna, jawaban mereka untuk pertanyaan kuis, dan skor akhir mereka.
 
-  Your task is to analyze this data to identify any patterns in the answers that correlate with high performance. A user is considered high-performing if their score is above {{highPerformanceThreshold}}.
+  Tugas Anda adalah menganalisis data ini untuk mengidentifikasi pola apa pun dalam jawaban yang berkorelasi dengan kinerja tinggi. Pengguna dianggap berkinerja tinggi jika skor mereka di atas {{highPerformanceThreshold}}.
 
-  Based on your analysis, provide key insights into these answer patterns and suggest improvements to the quiz or curriculum.
+  Berdasarkan analisis Anda, berikan wawasan kunci tentang pola jawaban ini dan sarankan perbaikan untuk kuis atau kurikulum.
 
-  Submissions:
+  Pengiriman:
   {{#each submissions}}
-  - User ID: {{this.userId}}
-    Answers: {{json-stringify this.answers}}
-    Score: {{this.score}}
+  - ID Pengguna: {{this.userId}}
+    Jawaban: {{json-stringify this.answers}}
+    Skor: {{this.score}}
   {{/each}}
   
-  Here are some tips for extracting the best signal:
-  * Make sure to sanitize the incoming submissions to remove any personally identifiable information.
-  * Consider grouping questions by concept to see if high performers consistently do well (or poorly) on specific topics.
-  * If all submissions are the same, try setting "highPerformanceThreshold" to a value above that score to induce the LLM to provide the best possible signal.
+  Berikut adalah beberapa tips untuk mengekstrak sinyal terbaik:
+  * Pastikan untuk membersihkan pengiriman yang masuk untuk menghapus informasi yang dapat diidentifikasi secara pribadi.
+  * Pertimbangkan untuk mengelompokkan pertanyaan berdasarkan konsep untuk melihat apakah peserta berkinerja tinggi secara konsisten berhasil (atau gagal) pada topik tertentu.
+  * Jika semua pengiriman sama, coba atur "highPerformanceThreshold" ke nilai di atas skor tersebut untuk mendorong LLM memberikan sinyal terbaik.
   `,
   config: {
     safetySettings: [
@@ -89,7 +89,7 @@ const analyzeQuizPerformanceFlow = ai.defineFlow(
     outputSchema: AnalyzeQuizPerformanceOutputSchema,
   },
   async input => {
-    // Sanitize the submissions to remove personally identifiable information.
+    // Membersihkan pengiriman untuk menghapus informasi yang dapat diidentifikasi secara pribadi.
     const sanitizedSubmissions = input.submissions.map(submission => ({
       ...submission,
       userId: 'REDACTED',
@@ -102,4 +102,3 @@ const analyzeQuizPerformanceFlow = ai.defineFlow(
     return output!;
   }
 );
-

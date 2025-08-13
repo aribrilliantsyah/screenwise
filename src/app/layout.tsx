@@ -5,7 +5,7 @@ import { Header } from '@/components/header';
 
 export const metadata: Metadata = {
   title: 'ScreenWise',
-  description: 'An intelligent quiz platform to screen candidates and analyze performance.',
+  description: 'Platform kuis cerdas untuk menyaring kandidat dan menganalisis kinerja.',
 };
 
 export default function RootLayout({
@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="id">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

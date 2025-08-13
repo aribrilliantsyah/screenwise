@@ -28,6 +28,7 @@ export default function QuizClient() {
       });
     }, 1000);
     return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAnswerChange = (questionId: string, value: string) => {
@@ -67,8 +68,8 @@ export default function QuizClient() {
         <CardHeader>
           <div className="flex justify-between items-center">
              <div>
-                <CardTitle className="text-3xl font-bold font-headline">Knowledge Quiz</CardTitle>
-                <CardDescription>Answer all questions before the time runs out.</CardDescription>
+                <CardTitle className="text-3xl font-bold font-headline">Kuis Pengetahuan</CardTitle>
+                <CardDescription>Jawab semua pertanyaan sebelum waktu habis.</CardDescription>
              </div>
              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
                 <Timer className="h-6 w-6" />
@@ -100,7 +101,7 @@ export default function QuizClient() {
         </CardContent>
         <CardFooter>
           <Button onClick={handleSubmit} className="w-full" size="lg" disabled={!allQuestionsAnswered}>
-            Submit Quiz
+            Kirim Kuis
           </Button>
         </CardFooter>
       </Card>
