@@ -150,7 +150,7 @@ export default function ProfilePage() {
                  <p className="text-lg text-muted-foreground">Kelola informasi akun dan kata sandi Anda.</p>
             </div>
             
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
                 <Card>
                     <CardHeader>
                         <CardTitle>Informasi Profil</CardTitle>
