@@ -191,7 +191,7 @@ export default function ProfilePage() {
                                 <FormItem>
                                     <FormLabel>Asal Perusahaan (Opsional)</FormLabel>
                                     <FormControl>
-                                    <Input placeholder="PT Teknologi Maju" {...field} />
+                                    <Input placeholder="PT Teknologi Maju" {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
