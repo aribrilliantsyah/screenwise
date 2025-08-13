@@ -29,6 +29,7 @@ export default function ResultsPage() {
   const [analysis, setAnalysis] = useState<AnalyzeQuizPerformanceOutput | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const quizId = searchParams.get('quizId');
   const quiz = useMemo(() => quizGroups.find(q => q.id === quizId), [quizId]);
@@ -83,6 +84,7 @@ export default function ResultsPage() {
   };
 
   const handleBackToDashboard = () => {
+    setIsSubmitting(true);
     router.push("/dashboard");
   };
 
@@ -178,7 +180,10 @@ export default function ResultsPage() {
             </div>
 
             <div className="text-center">
-                <Button onClick={handleBackToDashboard} size="lg">Kembali ke Dasbor</Button>
+                <Button onClick={handleBackToDashboard} size="lg" disabled={isSubmitting}>
+                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                   Kembali ke Dasbor
+                </Button>
             </div>
         </CardContent>
       </Card>

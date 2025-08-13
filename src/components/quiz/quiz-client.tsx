@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Timer } from "lucide-react";
+import { Loader2, Timer } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
 interface QuizClientProps {
@@ -19,6 +20,7 @@ export default function QuizClient({ quiz }: QuizClientProps) {
   const { user } = useAuth();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(quiz.timeLimitSeconds);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export default function QuizClient({ quiz }: QuizClientProps) {
   };
   
   const handleSubmit = () => {
+    setIsSubmitting(true);
     if (!user) {
       console.error("User not logged in.");
       router.push('/login');
@@ -120,7 +123,8 @@ export default function QuizClient({ quiz }: QuizClientProps) {
           ))}
         </CardContent>
         <CardFooter>
-          <Button onClick={handleSubmit} className="w-full" size="lg" disabled={!allQuestionsAnswered}>
+          <Button onClick={handleSubmit} className="w-full" size="lg" disabled={!allQuestionsAnswered || isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Kirim Kuis
           </Button>
         </CardFooter>

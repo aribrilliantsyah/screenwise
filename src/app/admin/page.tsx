@@ -39,7 +39,7 @@ export default function AdminPage() {
 
     if (authLoading || !isAdmin) {
         return (
-            <div className="flex h-screen items-center justify-center">
+            <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
             </div>
         );
