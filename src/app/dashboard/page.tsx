@@ -150,17 +150,8 @@ export default function DashboardPage() {
             return (
               <Card key={quiz.id} className="flex flex-col transition-shadow duration-300 hover:shadow-lg opacity-80">
                 <CardHeader>
-                  <div className="flex items-start justify-between">
-                      <div>
-                          <CardTitle className="text-xl font-bold">{quiz.title}</CardTitle>
-                          <CardDescription className="mt-1">{quiz.description}</CardDescription>
-                      </div>
-                       {status && (
-                          <Badge variant={status.passed ? 'default' : 'destructive'} className={status.passed ? 'bg-green-600' : ''}>
-                            {status.passed ? 'Lulus' : 'Gagal'}
-                          </Badge>
-                      )}
-                  </div>
+                    <CardTitle className="text-xl font-bold">{quiz.title}</CardTitle>
+                    <CardDescription className="mt-1">{quiz.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow space-y-3">
                    <div className="flex items-center text-sm text-muted-foreground gap-2">
@@ -176,7 +167,12 @@ export default function DashboardPage() {
                       <span>Skor kelulusan: {quiz.passingScore}%</span>
                    </div>
                 </CardContent>
-                <CardFooter className="bg-muted/50 p-4">
+                <CardFooter className="bg-muted/50 p-4 flex flex-col items-stretch gap-4">
+                  {status && (
+                      <div className={`text-center p-2 rounded-md font-semibold text-sm ${status.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {status.passed ? 'Lulus' : 'Gagal'}
+                      </div>
+                  )}
                   <Button onClick={() => handleNavigation(quiz.id, `/quiz/results?quizId=${quiz.id}`)} className="w-full" variant="secondary" disabled={!!loadingQuiz}>
                      {loadingQuiz === quiz.id ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
