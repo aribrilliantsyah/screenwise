@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
-import { quizQuestions } from "@/data/quiz-data";
+import { Loader2, PlusCircle, Edit, Trash2 } from "lucide-react";
+import { quizGroups } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
 
 interface Attempt {
   userEmail: string;
+  quizId: string;
   score: number;
   passed: boolean;
   timestamp: string;
@@ -50,32 +51,34 @@ export default function AdminPage() {
             <div className="grid gap-8 md:grid-cols-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Manajemen Soal Kuis</CardTitle>
-                        <CardDescription>Tambah, edit, atau hapus soal kuis.</CardDescription>
+                        <CardTitle>Manajemen Kuis</CardTitle>
+                        <CardDescription>Tambah, edit, atau hapus grup soal kuis.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        <Table>
                            <TableHeader>
                                <TableRow>
-                                   <TableHead>No.</TableHead>
-                                   <TableHead>Pertanyaan</TableHead>
+                                   <TableHead>Nama Kuis</TableHead>
+                                   <TableHead>Jumlah Soal</TableHead>
+                                   <TableHead>Skor Lulus</TableHead>
                                    <TableHead>Aksi</TableHead>
                                </TableRow>
                            </TableHeader>
                            <TableBody>
-                               {quizQuestions.map((q, i) => (
-                                   <TableRow key={q.id}>
-                                       <TableCell>{i + 1}</TableCell>
-                                       <TableCell>{q.question}</TableCell>
+                               {quizGroups.map((group) => (
+                                   <TableRow key={group.id}>
+                                       <TableCell className="font-medium">{group.title}</TableCell>
+                                       <TableCell>{group.questions.length}</TableCell>
+                                       <TableCell>{group.passingScore}%</TableCell>
                                        <TableCell>
-                                           <Button variant="outline" size="sm" className="mr-2">Edit</Button>
-                                           <Button variant="destructive" size="sm">Hapus</Button>
+                                           <Button variant="outline" size="sm" className="mr-2"><Edit /></Button>
+                                           <Button variant="destructive" size="sm"><Trash2 /></Button>
                                        </TableCell>
                                    </TableRow>
                                ))}
                            </TableBody>
                        </Table>
-                       <Button className="mt-4">Tambah Soal Baru</Button>
+                       <Button className="mt-4 w-full"><PlusCircle /> Tambah Kuis Baru</Button>
                     </CardContent>
                 </Card>
                  <Card>
@@ -88,22 +91,22 @@ export default function AdminPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Email Peserta</TableHead>
+                                    <TableHead>Kuis</TableHead>
                                     <TableHead>Skor</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Waktu</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {attempts.length > 0 ? attempts.map((attempt, index) => (
                                     <TableRow key={index}>
                                         <TableCell>{attempt.userEmail}</TableCell>
+                                        <TableCell>{quizGroups.find(qg => qg.id === attempt.quizId)?.title || 'N/A'}</TableCell>
                                         <TableCell>{attempt.score.toFixed(0)}%</TableCell>
                                         <TableCell>
-                                            <span className={attempt.passed ? "text-green-600" : "text-destructive"}>
+                                            <span className={attempt.passed ? "text-green-600 font-bold" : "text-destructive font-bold"}>
                                               {attempt.passed ? 'Lulus' : 'Gagal'}
                                             </span>
                                         </TableCell>
-                                        <TableCell>{new Date(attempt.timestamp).toLocaleString()}</TableCell>
                                     </TableRow>
                                 )) : (
                                     <TableRow>

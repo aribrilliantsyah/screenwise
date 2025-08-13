@@ -29,7 +29,7 @@ export default function Home() {
                 <CheckCircle className="mr-3 mt-1 h-5 w-5 text-primary" />
                 <div>
                   <h3 className="font-semibold">Kuis Interaktif</h3>
-                  <p className="text-sm text-muted-foreground">Soal pilihan ganda yang menarik.</p>
+                  <p className="text-sm text-muted-foreground">Soal pilihan ganda yang menarik untuk berbagai topik.</p>
                 </div>
               </li>
               <li className="flex items-start">
@@ -46,11 +46,11 @@ export default function Home() {
                   <p className="text-sm text-muted-foreground">Temukan pola kinerja dengan wawasan GenAI.</p>
                 </div>
               </li>
-              <li className="flex items-start">
+               <li className="flex items-start">
                 <CheckCircle className="mr-3 mt-1 h-5 w-5 text-primary" />
                 <div>
-                  <h3 className="font-semibold">Tantangan Berwaktu</h3>
-                  <p className="text-sm text-muted-foreground">Uji kecepatan dan akurasi Anda di bawah tekanan.</p>
+                  <h3 className="font-semibold">Manajemen Admin</h3>
+                  <p className="text-sm text-muted-foreground">Admin dapat membuat kuis baru, mengatur skor kelulusan, dan memantau peserta.</p>
                 </div>
               </li>
             </ul>

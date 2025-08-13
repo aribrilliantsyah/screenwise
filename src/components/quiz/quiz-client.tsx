@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { quizQuestions, QUIZ_TIME_SECONDS, PASSING_SCORE_PERCENTAGE } from "@/data/quiz-data";
+import { type QuizGroup } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -11,10 +11,14 @@ import { Progress } from "@/components/ui/progress";
 import { Timer } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
-export default function QuizClient() {
+interface QuizClientProps {
+    quiz: QuizGroup;
+}
+
+export default function QuizClient({ quiz }: QuizClientProps) {
   const { user } = useAuth();
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [timeLeft, setTimeLeft] = useState(QUIZ_TIME_SECONDS);
+  const [timeLeft, setTimeLeft] = useState(quiz.timeLimitSeconds);
   const router = useRouter();
 
   useEffect(() => {
@@ -44,37 +48,39 @@ export default function QuizClient() {
     }
     
     let score = 0;
-    quizQuestions.forEach((q) => {
+    quiz.questions.forEach((q) => {
       if (answers[q.id] === q.correctAnswer) {
         score += 1;
       }
     });
 
-    const scorePercentage = (score / quizQuestions.length) * 100;
-    const passed = scorePercentage >= PASSING_SCORE_PERCENTAGE;
+    const scorePercentage = (score / quiz.questions.length) * 100;
+    const passed = scorePercentage >= quiz.passingScore;
 
     const attemptData = {
+      quizId: quiz.id,
       answers,
       score: scorePercentage,
       passed,
       timestamp: new Date().toISOString(),
     };
 
-    localStorage.setItem(`quiz_attempt_${user.email}`, JSON.stringify(attemptData));
+    // Simpan percobaan untuk kuis spesifik ini
+    localStorage.setItem(`quiz_attempt_${user.email}_${quiz.id}`, JSON.stringify(attemptData));
     
-    // Simpan juga percobaan di bawah daftar semua percobaan
+    // Simpan juga percobaan di bawah daftar semua percobaan untuk admin
     const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
     const allAttempts = allAttemptsRaw ? JSON.parse(allAttemptsRaw) : [];
     allAttempts.push({ userEmail: user.email, ...attemptData });
     localStorage.setItem('all_quiz_attempts', JSON.stringify(allAttempts));
 
-    router.push("/quiz/results");
+    router.push(`/quiz/results?quizId=${quiz.id}`);
   };
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   
-  const allQuestionsAnswered = Object.keys(answers).length === quizQuestions.length;
+  const allQuestionsAnswered = Object.keys(answers).length === quiz.questions.length;
 
   return (
     <div className="container mx-auto max-w-3xl py-12 px-4 md:px-6">
@@ -82,8 +88,8 @@ export default function QuizClient() {
         <CardHeader>
           <div className="flex justify-between items-center">
              <div>
-                <CardTitle className="text-3xl font-bold font-headline">Kuis Pengetahuan</CardTitle>
-                <CardDescription>Jawab semua pertanyaan sebelum waktu habis.</CardDescription>
+                <CardTitle className="text-3xl font-bold font-headline">{quiz.title}</CardTitle>
+                <CardDescription>{quiz.description}</CardDescription>
              </div>
              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
                 <Timer className="h-6 w-6" />
@@ -92,8 +98,8 @@ export default function QuizClient() {
           </div>
         </CardHeader>
         <CardContent className="space-y-8">
-           <Progress value={(timeLeft / QUIZ_TIME_SECONDS) * 100} className="w-full h-2" />
-          {quizQuestions.map((q, index) => (
+           <Progress value={(timeLeft / quiz.timeLimitSeconds) * 100} className="w-full h-2" />
+          {quiz.questions.map((q, index) => (
             <div key={q.id}>
               <p className="font-semibold mb-4 text-lg">
                 {index + 1}. {q.question}

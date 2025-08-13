@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { analyzeQuizPerformance, type AnalyzeQuizPerformanceOutput } from "@/ai/flows/analyze-quiz-performance";
-import { MOCK_SUBMISSIONS, PASSING_SCORE_PERCENTAGE, quizQuestions } from "@/data/quiz-data";
+import { MOCK_SUBMISSIONS, quizGroups } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, BrainCircuit, Lightbulb, CheckCircle, XCircle } from "lucide-react";
@@ -16,15 +16,21 @@ interface Attempt {
   score: number;
   passed: boolean;
   timestamp: string;
+  quizId: string;
 }
 
 export default function ResultsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
+  
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [analysis, setAnalysis] = useState<AnalyzeQuizPerformanceOutput | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
+
+  const quizId = searchParams.get('quizId');
+  const quiz = useMemo(() => quizGroups.find(q => q.id === quizId), [quizId]);
 
   useEffect(() => {
     if (authLoading) return; 
@@ -33,19 +39,23 @@ export default function ResultsPage() {
         router.push('/login');
         return;
     }
+    if (!quizId) {
+        router.push('/dashboard');
+        return;
+    }
 
-    const storedAttempt = localStorage.getItem(`quiz_attempt_${user.email}`);
-    if (storedAttempt) {
+    const storedAttempt = localStorage.getItem(`quiz_attempt_${user.email}_${quizId}`);
+    if (storedAttempt && quiz) {
       const parsedAttempt = JSON.parse(storedAttempt);
       setAttempt(parsedAttempt);
-      fetchAnalysis(parsedAttempt, user.email);
+      fetchAnalysis(parsedAttempt, user.email, quiz);
       setLoading(false);
     } else {
-      router.push("/quiz");
+      router.push(`/quiz/${quizId}`);
     }
-  }, [router, user, authLoading]);
+  }, [router, user, authLoading, quizId, quiz]);
 
-  const fetchAnalysis = async (userAttempt: Attempt, currentUserId: string) => {
+  const fetchAnalysis = async (userAttempt: Attempt, currentUserId: string, currentQuiz: any) => {
     setLoadingAnalysis(true);
     try {
         const currentUserSubmission = {
@@ -53,12 +63,12 @@ export default function ResultsPage() {
             answers: userAttempt.answers,
             score: userAttempt.score,
         };
-        const allSubmissions = [...MOCK_SUBMISSIONS, currentUserSubmission];
+        const allSubmissions = [...MOCK_SUBMISSIONS.filter(s => s.quizId === quizId), currentUserSubmission];
 
       const result = await analyzeQuizPerformance({
-        quizName: "Kuis Pengetahuan",
+        quizName: currentQuiz.title,
         submissions: allSubmissions,
-        highPerformanceThreshold: PASSING_SCORE_PERCENTAGE,
+        highPerformanceThreshold: currentQuiz.passingScore,
       });
       setAnalysis(result);
     } catch (error) {
@@ -69,16 +79,11 @@ export default function ResultsPage() {
     }
   };
 
-  const handleRetake = () => {
-    if (user) {
-      localStorage.removeItem(`quiz_attempt_${user.email}`);
-      router.push("/quiz");
-    }
+  const handleBackToDashboard = () => {
+    router.push("/dashboard");
   };
 
-  const memoizedQuizQuestions = useMemo(() => quizQuestions, []);
-
-  if (loading || authLoading || !attempt) {
+  if (loading || authLoading || !attempt || !quiz) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -86,21 +91,33 @@ export default function ResultsPage() {
     );
   }
 
+  const { passed, score } = attempt;
+  const isInterviewQualified = passed;
+
   return (
     <div className="container mx-auto max-w-4xl py-12 px-4 md:px-6">
       <Card className="w-full">
         <CardHeader className="text-center items-center">
-          {attempt.passed ? (
+          {passed ? (
             <CheckCircle className="h-16 w-16 text-green-500" />
           ) : (
             <XCircle className="h-16 w-16 text-destructive" />
           )}
           <CardTitle className="text-3xl font-bold font-headline mt-4">
-            Hasil Kuis
+            Hasil {quiz.title}
           </CardTitle>
           <CardDescription className="text-xl">
-            Anda mendapat skor {attempt.score.toFixed(0)}% dan Anda <span className={attempt.passed ? "font-bold text-green-600" : "font-bold text-destructive"}>{attempt.passed ? "Lulus" : "Gagal"}</span>.
+            Anda mendapat skor {score.toFixed(0)}% dan Anda <span className={passed ? "font-bold text-green-600" : "font-bold text-destructive"}>{passed ? "Lulus" : "Gagal"}</span>.
           </CardDescription>
+          {isInterviewQualified && (
+            <Alert variant="default" className="mt-4 max-w-md bg-green-50 border-green-200">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertTitle className="text-green-800">Selamat!</AlertTitle>
+                <AlertDescription className="text-green-700">
+                    Anda lolos untuk melanjutkan ke tahap interview. Tim kami akan segera menghubungi Anda.
+                </AlertDescription>
+            </Alert>
+          )}
         </CardHeader>
         <CardContent className="space-y-8">
             <div className="grid gap-6 md:grid-cols-2">
@@ -140,7 +157,7 @@ export default function ResultsPage() {
             <div>
                  <h3 className="text-xl font-semibold mb-4 text-center">Jawaban Anda</h3>
                  <div className="space-y-4">
-                 {memoizedQuizQuestions.map((q) => {
+                 {quiz.questions.map((q) => {
                      const userAnswer = attempt.answers[q.id] || "Tidak dijawab";
                      const isCorrect = userAnswer === q.correctAnswer;
                      return (
@@ -158,7 +175,7 @@ export default function ResultsPage() {
             </div>
 
             <div className="text-center">
-                <Button onClick={handleRetake} size="lg">Ulangi Kuis</Button>
+                <Button onClick={handleBackToDashboard} size="lg">Kembali ke Dasbor</Button>
             </div>
         </CardContent>
       </Card>

@@ -60,7 +60,7 @@ export function AuthForm({ variant }: AuthFormProps) {
         if (values.email === 'admin@screenwise.com') {
             router.push("/admin");
         } else {
-            router.push("/quiz");
+            router.push("/dashboard");
         }
       }
     } catch (error: any) {
