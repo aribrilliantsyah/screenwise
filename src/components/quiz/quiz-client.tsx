@@ -9,12 +9,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Timer } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function QuizClient() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(QUIZ_TIME_SECONDS);
   const router = useRouter();
-  const mockUserId = 'guest_user';
+  const { user } = useAuth();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -36,6 +37,11 @@ export default function QuizClient() {
   };
   
   const handleSubmit = () => {
+    if (!user) {
+      // Should not happen if page guard is effective
+      router.push('/login');
+      return;
+    }
     let score = 0;
     quizQuestions.forEach((q) => {
       if (answers[q.id] === q.correctAnswer) {
@@ -53,7 +59,7 @@ export default function QuizClient() {
       timestamp: new Date().toISOString(),
     };
 
-    localStorage.setItem(`quiz_attempt_${mockUserId}`, JSON.stringify(attemptData));
+    localStorage.setItem(`quiz_attempt_${user.uid}`, JSON.stringify(attemptData));
     router.push("/quiz/results");
   };
 

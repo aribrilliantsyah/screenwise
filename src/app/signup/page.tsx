@@ -7,15 +7,15 @@ export default function SignupPage() {
     <div className="container flex h-[calc(100vh-4rem)] items-center justify-center">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold font-headline">Sign Up</CardTitle>
+          <CardTitle className="text-2xl font-bold font-headline">Daftar</CardTitle>
           <CardDescription>
-            Create an account to start the quiz
+            Buat akun untuk memulai kuis
           </CardDescription>
         </CardHeader>
         <CardContent>
           <AuthForm variant="signup" />
            <div className="mt-4 text-center text-sm">
-            Already have an account?{" "}
+            Sudah punya akun?{" "}
             <Link href="/login" className="underline hover:text-primary">
               Login
             </Link>

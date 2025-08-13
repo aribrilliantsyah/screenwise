@@ -9,15 +9,15 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle className="text-2xl font-bold font-headline">Login</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            Masukkan email Anda di bawah ini untuk masuk ke akun Anda
           </CardDescription>
         </CardHeader>
         <CardContent>
           <AuthForm variant="login" />
           <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{" "}
+            Belum punya akun?{" "}
             <Link href="/signup" className="underline hover:text-primary">
-              Sign up
+              Daftar
             </Link>
           </div>
         </CardContent>
