@@ -144,150 +144,151 @@ export default function ProfilePage() {
     };
 
     return (
-        <div className="container mx-auto max-w-2xl py-10 px-4 space-y-12">
-            <div>
+        <div className="container mx-auto max-w-5xl py-10 px-4">
+            <div className="mb-12">
                  <h1 className="text-4xl font-bold font-headline">Pengaturan Profil</h1>
                  <p className="text-lg text-muted-foreground">Kelola informasi akun dan kata sandi Anda.</p>
             </div>
             
-            <Card>
-                <CardHeader>
-                    <CardTitle>Informasi Profil</CardTitle>
-                    <CardDescription>Perbarui data pribadi Anda. Email tidak dapat diubah.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Form {...profileForm}>
-                        <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
-                             <FormField
-                                control={profileForm.control}
-                                name="name"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Nama Lengkap <span className="text-destructive">*</span></FormLabel>
-                                    <FormControl>
-                                    <Input placeholder="John Doe" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={profileForm.control}
-                                name="address"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Alamat <span className="text-destructive">*</span></FormLabel>
-                                    <FormControl>
-                                    <Input placeholder="Jl. Pahlawan No. 10" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={profileForm.control}
-                                name="company"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Asal Perusahaan (Opsional)</FormLabel>
-                                    <FormControl>
-                                    <Input placeholder="PT Teknologi Maju" {...field} value={field.value ?? ''} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={profileForm.control}
-                                name="whatsapp"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Nomor WhatsApp <span className="text-destructive">*</span></FormLabel>
-                                    <FormControl>
-                                    <Input type="tel" placeholder="081234567890" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={profileForm.control}
-                                name="phone"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Nomor HP <span className="text-destructive">*</span></FormLabel>
-                                    <FormControl>
-                                    <Input type="tel" placeholder="081234567890" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                             <Button type="submit" disabled={profileLoading}>
-                                {profileLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Simpan Perubahan
-                            </Button>
-                        </form>
-                    </Form>
-                </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Informasi Profil</CardTitle>
+                        <CardDescription>Perbarui data pribadi Anda. Email tidak dapat diubah.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Form {...profileForm}>
+                            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+                                <FormField
+                                    control={profileForm.control}
+                                    name="name"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Nama Lengkap <span className="text-destructive">*</span></FormLabel>
+                                        <FormControl>
+                                        <Input placeholder="John Doe" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={profileForm.control}
+                                    name="address"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Alamat <span className="text-destructive">*</span></FormLabel>
+                                        <FormControl>
+                                        <Input placeholder="Jl. Pahlawan No. 10" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={profileForm.control}
+                                    name="company"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Asal Perusahaan (Opsional)</FormLabel>
+                                        <FormControl>
+                                        <Input placeholder="PT Teknologi Maju" {...field} value={field.value ?? ''} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={profileForm.control}
+                                    name="whatsapp"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Nomor WhatsApp <span className="text-destructive">*</span></FormLabel>
+                                        <FormControl>
+                                        <Input type="tel" placeholder="081234567890" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={profileForm.control}
+                                    name="phone"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Nomor HP <span className="text-destructive">*</span></FormLabel>
+                                        <FormControl>
+                                        <Input type="tel" placeholder="081234567890" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <Button type="submit" disabled={profileLoading}>
+                                    {profileLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Simpan Perubahan
+                                </Button>
+                            </form>
+                        </Form>
+                    </CardContent>
+                </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Ubah Kata Sandi</CardTitle>
-                    <CardDescription>Pastikan Anda menggunakan kata sandi yang kuat.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <Form {...passwordForm}>
-                        <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
-                             <FormField
-                                control={passwordForm.control}
-                                name="oldPassword"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Kata Sandi Lama <span className="text-destructive">*</span></FormLabel>
-                                    <FormControl>
-                                    <Input type="password" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={passwordForm.control}
-                                name="newPassword"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Kata Sandi Baru <span className="text-destructive">*</span></FormLabel>
-                                    <FormControl>
-                                    <Input type="password" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={passwordForm.control}
-                                name="confirmPassword"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Konfirmasi Kata Sandi Baru <span className="text-destructive">*</span></FormLabel>
-                                    <FormControl>
-                                    <Input type="password" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                             <Button type="submit" disabled={passwordLoading}>
-                                {passwordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Ubah Kata Sandi
-                            </Button>
-                        </form>
-                    </Form>
-                </CardContent>
-            </Card>
-
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Ubah Kata Sandi</CardTitle>
+                        <CardDescription>Pastikan Anda menggunakan kata sandi yang kuat.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Form {...passwordForm}>
+                            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+                                <FormField
+                                    control={passwordForm.control}
+                                    name="oldPassword"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Kata Sandi Lama <span className="text-destructive">*</span></FormLabel>
+                                        <FormControl>
+                                        <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={passwordForm.control}
+                                    name="newPassword"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Kata Sandi Baru <span className="text-destructive">*</span></FormLabel>
+                                        <FormControl>
+                                        <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={passwordForm.control}
+                                    name="confirmPassword"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Konfirmasi Kata Sandi Baru <span className="text-destructive">*</span></FormLabel>
+                                        <FormControl>
+                                        <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <Button type="submit" disabled={passwordLoading}>
+                                    {passwordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Ubah Kata Sandi
+                                </Button>
+                            </form>
+                        </Form>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     )
 }
