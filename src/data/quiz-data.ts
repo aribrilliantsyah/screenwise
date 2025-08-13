@@ -151,5 +151,3 @@ export const QUIZ_TIME_SECONDS = 300;
 
 // Deprecated, use quizGroups instead
 export const quizQuestions = initialQuizGroups[0].questions;
-
-    

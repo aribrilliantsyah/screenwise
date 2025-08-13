@@ -3,14 +3,14 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useEffect, useState, useRef } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, PlusCircle, Edit, Trash2 } from "lucide-react";
-import { getQuizGroups, saveQuizGroups, type QuizGroup } from "@/data/quiz-data";
+import { Loader2, PlusCircle, Edit, Trash2, FileDown, Upload } from "lucide-react";
+import { getQuizGroups, saveQuizGroups, type QuizGroup, type Question } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import * as XLSX from "xlsx";
 
 interface Attempt {
   userEmail: string;
@@ -43,16 +44,22 @@ const quizFormSchema = z.object({
   questions: z.array(questionSchema).min(1, "Minimal 1 pertanyaan"),
 });
 
+type QuizFormData = z.infer<typeof quizFormSchema>;
 
 export default function AdminPage() {
     const { isAdmin, loading: authLoading } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [quizzes, setQuizzes] = useState<QuizGroup[]>([]);
     const [attempts, setAttempts] = useState<Attempt[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isAddQuizDialogOpen, setIsAddQuizDialogOpen] = useState(false);
+
+    // State untuk import
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+    const [importedQuiz, setImportedQuiz] = useState<Omit<QuizFormData, 'questions'> & { questions: Omit<Question, 'id'>[] } | null>(null);
 
     // State untuk paginasi
     const [quizPage, setQuizPage] = useState(1);
@@ -65,7 +72,6 @@ export default function AdminPage() {
     }, [isAdmin, authLoading, router]);
 
     useEffect(() => {
-        // Ambil data dari localStorage
         setQuizzes(getQuizGroups());
         const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
         if (allAttemptsRaw) {
@@ -73,7 +79,7 @@ export default function AdminPage() {
         }
     }, []);
 
-    const form = useForm<z.infer<typeof quizFormSchema>>({
+    const form = useForm<QuizFormData>({
         resolver: zodResolver(quizFormSchema),
         defaultValues: {
             title: "",
@@ -84,26 +90,22 @@ export default function AdminPage() {
         },
     });
 
+    const importForm = useForm<QuizFormData>({
+        resolver: zodResolver(quizFormSchema),
+    });
+
     const { fields, append, remove, update } = useFieldArray({
         control: form.control,
         name: "questions"
     });
 
-    const onSubmit = (values: z.infer<typeof quizFormSchema>) => {
+    const onSubmit = (values: QuizFormData) => {
         setIsSubmitting(true);
         try {
-            const finalValues = {
-                ...values,
-                questions: values.questions.map(q => ({
-                    ...q,
-                    options: q.options.filter(opt => opt && opt.trim() !== '') // Hapus opsi kosong
-                }))
-            };
-
             const newQuiz: QuizGroup = {
-                id: finalValues.title.toLowerCase().replace(/\s+/g, '-'), // Generate ID from title
-                ...finalValues,
-                questions: finalValues.questions.map((q, index) => ({ ...q, id: index + 1 })),
+                id: values.title.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+                ...values,
+                questions: values.questions.map((q, index) => ({ ...q, id: index + 1 })),
             };
 
             const updatedQuizzes = [...quizzes, newQuiz];
@@ -115,7 +117,14 @@ export default function AdminPage() {
                 description: "Kuis baru berhasil ditambahkan.",
             });
             form.reset();
-            setIsDialogOpen(false);
+            setIsAddQuizDialogOpen(false);
+            
+            // Tutup juga dialog impor jika terbuka
+            if (isImportDialogOpen) {
+                setIsImportDialogOpen(false);
+                setImportedQuiz(null);
+                importForm.reset();
+            }
 
         } catch (error) {
             toast({
@@ -128,6 +137,88 @@ export default function AdminPage() {
         }
     };
 
+    const handleDownloadTemplate = () => {
+        const worksheet = XLSX.utils.json_to_sheet([
+            { 'Pertanyaan': 'Apa ibu kota Indonesia?', 'Opsi 1': '(benar)Jakarta', 'Opsi 2': 'Surabaya', 'Opsi 3': 'Bandung' },
+        ]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Template Kuis");
+        XLSX.writeFile(workbook, "template_kuis.xlsx");
+    };
+
+    const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+                const parsedQuestions: Omit<Question, 'id'>[] = json.map((row, index) => {
+                    const question = row['Pertanyaan'];
+                    if (!question) throw new Error(`Pertanyaan di baris ${index + 2} kosong.`);
+                    
+                    const options: string[] = [];
+                    let correctAnswer = '';
+                    
+                    for (let i = 1; i <= 5; i++) {
+                        const optionKey = `Opsi ${i}`;
+                        let option = row[optionKey];
+                        if (option) {
+                           option = String(option);
+                           if (option.startsWith('(benar)')) {
+                               const cleanOption = option.replace('(benar)', '').trim();
+                               if(correctAnswer) throw new Error(`Pertanyaan di baris ${index + 2} memiliki lebih dari satu jawaban benar.`);
+                               correctAnswer = cleanOption;
+                               options.push(cleanOption);
+                           } else {
+                               options.push(option);
+                           }
+                        }
+                    }
+
+                    if (!correctAnswer) throw new Error(`Tidak ada jawaban benar yang ditandai dengan '(benar)' untuk pertanyaan di baris ${index + 2}.`);
+                    if (options.length < 2) throw new Error(`Pertanyaan di baris ${index + 2} harus memiliki minimal 2 opsi.`);
+
+                    return { question, options, correctAnswer };
+                });
+
+                if (parsedQuestions.length === 0) {
+                   throw new Error("File Excel tidak mengandung pertanyaan atau formatnya salah.");
+                }
+                
+                const tempQuizData = {
+                  title: `Kuis Impor - ${new Date().toLocaleString()}`,
+                  description: "Kuis yang diimpor dari file Excel.",
+                  passingScore: 70,
+                  timeLimitSeconds: 300,
+                  questions: parsedQuestions,
+                };
+
+                setImportedQuiz(tempQuizData);
+                importForm.reset(tempQuizData);
+                setIsImportDialogOpen(true);
+
+            } catch (error: any) {
+                toast({
+                    variant: "destructive",
+                    title: "Gagal Impor File",
+                    description: error.message || "Terjadi kesalahan saat memproses file.",
+                });
+            } finally {
+                // Reset file input
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                }
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
 
     // Logika Paginasi Kuis
     const totalQuizPages = Math.ceil(quizzes.length / ITEMS_PER_PAGE);
@@ -170,9 +261,16 @@ export default function AdminPage() {
             <h1 className="text-4xl font-bold mb-8 font-headline">Dasbor Admin</h1>
             <div className="grid grid-cols-1 gap-8">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Manajemen Kuis</CardTitle>
-                        <CardDescription>Tambah, edit, atau hapus grup soal kuis.</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Manajemen Kuis</CardTitle>
+                            <CardDescription>Tambah, edit, atau hapus grup soal kuis.</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".xlsx, .xls" className="hidden" />
+                             <Button variant="outline" onClick={handleDownloadTemplate}><FileDown /> Unduh Template</Button>
+                             <Button onClick={() => fileInputRef.current?.click()}><Upload /> Impor Kuis</Button>
+                        </div>
                     </CardHeader>
                     <CardContent>
                        <Table>
@@ -199,7 +297,7 @@ export default function AdminPage() {
                            </TableBody>
                        </Table>
                        <div className="flex items-center justify-between mt-4">
-                            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                            <Dialog open={isAddQuizDialogOpen} onOpenChange={setIsAddQuizDialogOpen}>
                                 <DialogTrigger asChild>
                                     <Button className="w-fit"><PlusCircle /> Tambah Kuis Baru</Button>
                                 </DialogTrigger>
@@ -368,6 +466,63 @@ export default function AdminPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Import Quiz Dialog */}
+            <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Konfirmasi Impor Kuis</DialogTitle>
+                        <DialogDescription>
+                            Tinjau detail kuis yang diimpor di bawah ini. Anda dapat mengubahnya sebelum menyimpan.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {importedQuiz && (
+                         <Form {...importForm}>
+                             <form onSubmit={importForm.handleSubmit(onSubmit)} className="space-y-6">
+                                <FormField name="title" control={importForm.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Judul Kuis</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField name="description" control={importForm.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Deskripsi</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField name="passingScore" control={importForm.control} render={({ field }) => (
+                                        <FormItem><FormLabel>Skor Lulus (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                    <FormField name="timeLimitSeconds" control={importForm.control} render={({ field }) => (
+                                        <FormItem><FormLabel>Batas Waktu (detik)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                </div>
+                                <Card>
+                                   <CardHeader><CardTitle>Pertanyaan yang Diimpor ({importedQuiz.questions.length})</CardTitle></CardHeader>
+                                   <CardContent className="space-y-4 max-h-60 overflow-y-auto">
+                                       {importedQuiz.questions.map((q, index) => (
+                                           <div key={index} className="p-3 border rounded-md">
+                                               <p className="font-semibold">{index + 1}. {q.question}</p>
+                                               <ul className="list-disc pl-5 mt-2 text-sm">
+                                                   {q.options.map((opt, optIndex) => (
+                                                       <li key={optIndex} className={opt === q.correctAnswer ? 'text-green-600 font-bold' : ''}>
+                                                           {opt} {opt === q.correctAnswer && '(Benar)'}
+                                                       </li>
+                                                   ))}
+                                               </ul>
+                                           </div>
+                                       ))}
+                                   </CardContent>
+                                </Card>
+
+                                <DialogFooter>
+                                    <DialogClose asChild><Button type="button" variant="secondary" onClick={() => setImportedQuiz(null)}>Batal</Button></DialogClose>
+                                    <Button type="submit" disabled={isSubmitting}>
+                                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Simpan Kuis Impor
+                                    </Button>
+                                </DialogFooter>
+                             </form>
+                         </Form>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
