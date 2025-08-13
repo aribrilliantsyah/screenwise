@@ -51,7 +51,7 @@ const analyzeQuizPerformancePrompt = ai.definePrompt({
   Pengiriman:
   {{#each submissions}}
   - ID Pengguna: {{this.userId}}
-    Jawaban: {{json-stringify this.answers}}
+    Jawaban: {{this.answers}}
     Skor: {{this.score}}
   {{/each}}
   
@@ -89,14 +89,16 @@ const analyzeQuizPerformanceFlow = ai.defineFlow(
     outputSchema: AnalyzeQuizPerformanceOutputSchema,
   },
   async input => {
-    // Membersihkan pengiriman untuk menghapus informasi yang dapat diidentifikasi secara pribadi.
+    // Membersihkan pengiriman dan mengubah objek jawaban menjadi string JSON.
     const sanitizedSubmissions = input.submissions.map(submission => ({
       ...submission,
       userId: 'REDACTED',
+      answers: JSON.stringify(submission.answers),
     }));
 
     const {output} = await analyzeQuizPerformancePrompt({
       ...input,
+      // @ts-ignore
       submissions: sanitizedSubmissions,
     });
     return output!;
