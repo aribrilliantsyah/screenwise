@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -51,7 +52,9 @@ export default function ResultsPage() {
       fetchAnalysis(parsedAttempt, user.email, quiz);
       setLoading(false);
     } else {
-      router.push(`/quiz/${quizId}`);
+      // Jika tidak ada percobaan, mungkin pengguna mencoba mengakses langsung.
+      // Arahkan ke dasbor agar mereka bisa memilih kuis.
+      router.push(`/dashboard`);
     }
   }, [router, user, authLoading, quizId, quiz]);
 

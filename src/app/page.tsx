@@ -12,7 +12,7 @@ export default function Home() {
             Selamat Datang di ScreenWise
           </h1>
           <p className="text-lg text-muted-foreground">
-            Uji pengetahuan Anda dan lihat seberapa baik Anda melakukannya. Platform cerdas kami tidak hanya menilai kuis Anda tetapi juga memberikan wawasan tentang kinerja Anda.
+            Selamat datang, silakan melengkapi data terlebih dahulu dan mulai kuis.
           </p>
           <Button asChild size="lg">
             <Link href="/login">Masuk untuk Memulai</Link>

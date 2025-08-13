@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useRouter, useParams } from "next/navigation";
@@ -6,6 +7,7 @@ import QuizClient from "@/components/quiz/quiz-client";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { quizGroups } from "@/data/quiz-data";
+import { Button } from "@/components/ui/button";
 
 export default function DynamicQuizPage() {
   const router = useRouter();
@@ -41,13 +43,16 @@ export default function DynamicQuizPage() {
 
   // Cek apakah pengguna saat ini sudah pernah mencoba kuis ini
   const attemptKey = `quiz_attempt_${user.email}_${quiz.id}`;
-  const attempt = localStorage.getItem(attemptKey);
+  const attempt = typeof window !== 'undefined' ? localStorage.getItem(attemptKey) : null;
   
   if (attempt) {
-    router.push(`/quiz/results?quizId=${quiz.id}`);
+    // Jika sudah pernah mencoba, arahkan kembali ke dasbor.
+    // Tombol di dasbor akan mengarah ke hasil.
+    router.push('/dashboard');
     return (
        <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+        <p>Anda sudah mengerjakan kuis ini. Mengarahkan kembali ke dasbor...</p>
+        <Loader2 className="h-16 w-16 animate-spin text-primary ml-4" />
       </div>
     );
   }
