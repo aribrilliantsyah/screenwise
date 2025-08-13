@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 
 interface Attempt {
@@ -34,9 +35,11 @@ const questionSchema = z.object({
   question: z.string().min(1, "Pertanyaan tidak boleh kosong"),
   options: z.array(z.string().min(1, "Opsi tidak boleh kosong")).min(2, "Minimal 2 opsi"),
   correctAnswer: z.string({ required_error: "Anda harus memilih jawaban yang benar." }).min(1, "Anda harus memilih jawaban yang benar."),
+  id: z.any().optional(), // ID bisa string atau number
 });
 
 const quizFormSchema = z.object({
+  id: z.string().optional(),
   title: z.string().min(1, "Judul kuis harus diisi"),
   description: z.string().min(1, "Deskripsi harus diisi"),
   passingScore: z.coerce.number().min(0).max(100),
@@ -55,7 +58,10 @@ export default function AdminPage() {
     const [quizzes, setQuizzes] = useState<QuizGroup[]>([]);
     const [attempts, setAttempts] = useState<Attempt[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isAddQuizDialogOpen, setIsAddQuizDialogOpen] = useState(false);
+    
+    // Dialog States
+    const [isAddOrEditDialogOpen, setIsAddOrEditDialogOpen] = useState(false);
+    const [editingQuiz, setEditingQuiz] = useState<QuizGroup | null>(null);
 
     // State untuk import
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -86,7 +92,7 @@ export default function AdminPage() {
             description: "",
             passingScore: 70,
             timeLimitSeconds: 300,
-            questions: [{ question: "", options: ["", ""], correctAnswer: undefined }]
+            questions: [{ question: "", options: ["", ""], correctAnswer: undefined, id: 1 }]
         },
     });
 
@@ -99,25 +105,64 @@ export default function AdminPage() {
         name: "questions"
     });
 
+    const openAddDialog = () => {
+        setEditingQuiz(null);
+        form.reset({
+            title: "",
+            description: "",
+            passingScore: 70,
+            timeLimitSeconds: 300,
+            questions: [{ question: "", options: ["", ""], correctAnswer: undefined, id: 1 }]
+        });
+        setIsAddOrEditDialogOpen(true);
+    };
+
+    const openEditDialog = (quiz: QuizGroup) => {
+        setEditingQuiz(quiz);
+        form.reset({
+            ...quiz,
+            questions: quiz.questions.map(q => ({
+                question: q.question,
+                options: q.options,
+                correctAnswer: q.correctAnswer,
+                id: q.id
+            }))
+        });
+        setIsAddOrEditDialogOpen(true);
+    };
+
     const onSubmit = (values: QuizFormData) => {
         setIsSubmitting(true);
         try {
-            const newQuiz: QuizGroup = {
-                id: values.title.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
-                ...values,
-                questions: values.questions.map((q, index) => ({ ...q, id: index + 1 })),
-            };
+            if (editingQuiz) { // Logic for editing
+                const updatedQuiz: QuizGroup = {
+                    ...editingQuiz,
+                    ...values,
+                    questions: values.questions.map((q, index) => ({ 
+                        ...q, 
+                        id: q.id || index + 1 // Pertahankan ID lama jika ada
+                    })),
+                };
+                const updatedQuizzes = quizzes.map(q => q.id === editingQuiz.id ? updatedQuiz : q);
+                saveQuizGroups(updatedQuizzes);
+                setQuizzes(updatedQuizzes);
+                toast({ title: "Sukses!", description: "Kuis berhasil diperbarui." });
 
-            const updatedQuizzes = [...quizzes, newQuiz];
-            saveQuizGroups(updatedQuizzes);
-            setQuizzes(updatedQuizzes);
+            } else { // Logic for adding new quiz
+                const newQuiz: QuizGroup = {
+                    id: values.title.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+                    ...values,
+                    questions: values.questions.map((q, index) => ({ ...q, id: index + 1 })),
+                };
+                const updatedQuizzes = [...quizzes, newQuiz];
+                saveQuizGroups(updatedQuizzes);
+                setQuizzes(updatedQuizzes);
+                toast({ title: "Sukses!", description: "Kuis baru berhasil ditambahkan." });
+            }
             
-            toast({
-                title: "Sukses!",
-                description: "Kuis baru berhasil ditambahkan.",
-            });
             form.reset();
-            setIsAddQuizDialogOpen(false);
+            setIsAddOrEditDialogOpen(false);
+            setEditingQuiz(null);
             
             // Tutup juga dialog impor jika terbuka
             if (isImportDialogOpen) {
@@ -136,6 +181,25 @@ export default function AdminPage() {
             setIsSubmitting(false);
         }
     };
+    
+    const handleDeleteQuiz = (quizId: string) => {
+        try {
+            const updatedQuizzes = quizzes.filter(q => q.id !== quizId);
+            saveQuizGroups(updatedQuizzes);
+            setQuizzes(updatedQuizzes);
+            toast({
+                title: "Kuis Dihapus",
+                description: "Kuis telah berhasil dihapus."
+            });
+        } catch(error) {
+             toast({
+                variant: "destructive",
+                title: "Gagal",
+                description: "Terjadi kesalahan saat menghapus kuis.",
+            });
+        }
+    };
+
 
     const handleDownloadTemplate = () => {
         const header = [
@@ -171,24 +235,21 @@ export default function AdminPage() {
                 const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }) as any[][];
 
                 if (json.length < 6) throw new Error("Format template tidak valid. Pastikan template memiliki header metadata dan pertanyaan.");
-
-                // Ekstrak Metadata
+                
                 const title = json[0]?.[1] || `Kuis Impor - ${new Date().toLocaleString()}`;
                 const description = json[1]?.[1] || "Deskripsi kuis yang diimpor.";
                 const passingScore = parseInt(String(json[2]?.[1]), 10) || 70;
                 const timeLimitSeconds = parseInt(String(json[3]?.[1]), 10) || 300;
 
-                // Konversi baris pertanyaan ke objek
-                const questionRows = json.slice(5); // Mulai dari baris ke-6 (indeks 5)
+                const questionRows = json.slice(5);
 
                 const parsedQuestions: Omit<Question, 'id'>[] = questionRows.map((row, rowIndex) => {
-                    const question = row[0]; // Kolom A
-                    if (!question) return null; // Lewati baris jika pertanyaan kosong
+                    const question = row[0];
+                    if (!question) return null;
 
                     const options: string[] = [];
                     let correctAnswer = '';
                     
-                    // Baca opsi dari kolom B sampai F (indeks 1 sampai 5)
                     for (let i = 1; i <= 5; i++) {
                         let option = row[i];
                         if (option) {
@@ -223,7 +284,6 @@ export default function AdminPage() {
                 };
 
                 setImportedQuiz(tempQuizData);
-                // Reset form react-hook-form dengan nilai baru
                 importForm.reset({
                   ...tempQuizData,
                   questions: tempQuizData.questions.map(q => ({
@@ -241,7 +301,6 @@ export default function AdminPage() {
                     description: error.message || "Terjadi kesalahan saat memproses file.",
                 });
             } finally {
-                // Reset file input
                 if (fileInputRef.current) {
                     fileInputRef.current.value = "";
                 }
@@ -250,15 +309,12 @@ export default function AdminPage() {
         reader.readAsArrayBuffer(file);
     };
 
-    // Logika Paginasi Kuis
     const totalQuizPages = Math.ceil(quizzes.length / ITEMS_PER_PAGE);
     const displayedQuizzes = quizzes.slice((quizPage - 1) * ITEMS_PER_PAGE, quizPage * ITEMS_PER_PAGE);
 
-    // Logika Paginasi Peserta
     const totalAttemptPages = Math.ceil(attempts.length / ITEMS_PER_PAGE);
     const displayedAttempts = attempts.slice((attemptsPage - 1) * ITEMS_PER_PAGE, attemptsPage * ITEMS_PER_PAGE);
 
-    // Fungsi untuk menambah dan menghapus opsi jawaban
     const addOption = (questionIndex: number) => {
         const question = form.getValues(`questions.${questionIndex}`);
         update(questionIndex, {
@@ -272,14 +328,12 @@ export default function AdminPage() {
         const newOptions = [...question.options];
         newOptions.splice(optionIndex, 1);
         
-        // Cek apakah opsi yang dihapus adalah jawaban yang benar
         const currentCorrectAnswer = form.getValues(`questions.${questionIndex}.correctAnswer`);
         const deletedOptionValue = question.options[optionIndex];
 
         update(questionIndex, {
             ...question,
             options: newOptions,
-            // Jika jawaban benar dihapus, reset correctAnswer
             correctAnswer: currentCorrectAnswer === deletedOptionValue ? undefined : currentCorrectAnswer
         });
     };
@@ -325,103 +379,32 @@ export default function AdminPage() {
                                        <TableCell className="font-medium">{group.title}</TableCell>
                                        <TableCell>{group.questions.length}</TableCell>
                                        <TableCell>{group.passingScore}%</TableCell>
-                                       <TableCell>
-                                           <Button variant="outline" size="sm" className="mr-2"><Edit /></Button>
-                                           <Button variant="destructive" size="sm"><Trash2 /></Button>
+                                       <TableCell className="flex gap-2">
+                                           <Button variant="outline" size="sm" onClick={() => openEditDialog(group)}><Edit /></Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="destructive" size="sm"><Trash2 /></Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Tindakan ini tidak dapat diurungkan. Ini akan menghapus kuis secara permanen.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteQuiz(group.id)}>Hapus</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                        </TableCell>
                                    </TableRow>
                                ))}
                            </TableBody>
                        </Table>
                        <div className="flex items-center justify-between mt-4">
-                            <Dialog open={isAddQuizDialogOpen} onOpenChange={setIsAddQuizDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button className="w-fit"><PlusCircle /> Tambah Kuis Baru</Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-                                    <DialogHeader>
-                                        <DialogTitle>Tambah Kuis Baru</DialogTitle>
-                                        <DialogDescription>
-                                            Isi detail kuis dan tambahkan pertanyaan di bawah ini.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <Form {...form}>
-                                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                                            <FormField name="title" control={form.control} render={({ field }) => (
-                                                <FormItem><FormLabel>Judul Kuis</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                            )} />
-                                            <FormField name="description" control={form.control} render={({ field }) => (
-                                                <FormItem><FormLabel>Deskripsi</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
-                                            )} />
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <FormField name="passingScore" control={form.control} render={({ field }) => (
-                                                    <FormItem><FormLabel>Skor Lulus (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                                )} />
-                                                <FormField name="timeLimitSeconds" control={form.control} render={({ field }) => (
-                                                    <FormItem><FormLabel>Batas Waktu (detik)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                                )} />
-                                            </div>
-                                            
-                                            <div className="space-y-4">
-                                                <h3 className="text-lg font-medium">Pertanyaan</h3>
-                                                {fields.map((item, index) => (
-                                                    <div key={item.id} className="p-4 border rounded-md space-y-3 relative">
-                                                        <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="absolute top-2 right-2 h-7 w-7">
-                                                           <Trash2 className="h-4 w-4" />
-                                                           <span className="sr-only">Hapus Pertanyaan</span>
-                                                        </Button>
-                                                        <FormField name={`questions.${index}.question`} control={form.control} render={({ field }) => (
-                                                            <FormItem><FormLabel>Pertanyaan {index + 1}</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
-                                                        )} />
-                                                        
-                                                        <FormField
-                                                          name={`questions.${index}.correctAnswer`}
-                                                          control={form.control}
-                                                          render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>Opsi Jawaban (pilih satu yang benar)</FormLabel>
-                                                                <FormControl>
-                                                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-2">
-                                                                        {form.watch(`questions.${index}.options`).map((option, optionIndex) => (
-                                                                            <div key={optionIndex} className="flex items-center gap-2">
-                                                                                <FormControl>
-                                                                                    <RadioGroupItem value={form.getValues(`questions.${index}.options.${optionIndex}`)} id={`q${index}-o${optionIndex}`} />
-                                                                                </FormControl>
-                                                                                <Input
-                                                                                    {...form.register(`questions.${index}.options.${optionIndex}`)}
-                                                                                    placeholder={`Opsi ${optionIndex + 1}`}
-                                                                                    className="flex-1"
-                                                                                />
-                                                                                {form.getValues(`questions.${index}.options`).length > 2 && (
-                                                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index, optionIndex)}>
-                                                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                                                    </Button>
-                                                                                )}
-                                                                            </div>
-                                                                        ))}
-                                                                    </RadioGroup>
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                          )}
-                                                        />
-                                                         <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>Tambah Opsi</Button>
-                                                    </div>
-                                                ))}
-                                                <Button type="button" variant="outline" onClick={() => append({ question: "", options: ["", ""], correctAnswer: undefined })}>Tambah Pertanyaan</Button>
-                                            </div>
-                                            
-                                            <DialogFooter>
-                                                <DialogClose asChild><Button type="button" variant="secondary">Batal</Button></DialogClose>
-                                                <Button type="submit" disabled={isSubmitting}>
-                                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                    Simpan Kuis
-                                                </Button>
-                                            </DialogFooter>
-                                        </form>
-                                    </Form>
-                                </DialogContent>
-                            </Dialog>
+                            <Button className="w-fit" onClick={openAddDialog}><PlusCircle /> Tambah Kuis Baru</Button>
 
                             <div className="flex items-center gap-2">
                                 <Button
@@ -503,6 +486,94 @@ export default function AdminPage() {
                     </CardContent>
                 </Card>
             </div>
+            
+            {/* Add/Edit Quiz Dialog */}
+            <Dialog open={isAddOrEditDialogOpen} onOpenChange={setIsAddOrEditDialogOpen}>
+                <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>{editingQuiz ? 'Edit Kuis' : 'Tambah Kuis Baru'}</DialogTitle>
+                        <DialogDescription>
+                           {editingQuiz ? 'Perbarui detail kuis di bawah ini.' : 'Isi detail kuis dan tambahkan pertanyaan di bawah ini.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                            <FormField name="title" control={form.control} render={({ field }) => (
+                                <FormItem><FormLabel>Judul Kuis</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField name="description" control={form.control} render={({ field }) => (
+                                <FormItem><FormLabel>Deskripsi</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField name="passingScore" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Skor Lulus (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField name="timeLimitSeconds" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Batas Waktu (detik)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-medium">Pertanyaan</h3>
+                                {fields.map((item, index) => (
+                                    <div key={item.id} className="p-4 border rounded-md space-y-3 relative">
+                                        <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="absolute top-2 right-2 h-7 w-7">
+                                           <Trash2 className="h-4 w-4" />
+                                           <span className="sr-only">Hapus Pertanyaan</span>
+                                        </Button>
+                                        <FormField name={`questions.${index}.question`} control={form.control} render={({ field }) => (
+                                            <FormItem><FormLabel>Pertanyaan {index + 1}</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        
+                                        <FormField
+                                          name={`questions.${index}.correctAnswer`}
+                                          control={form.control}
+                                          render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Opsi Jawaban (pilih satu yang benar)</FormLabel>
+                                                <FormControl>
+                                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-2">
+                                                        {form.watch(`questions.${index}.options`).map((option, optionIndex) => (
+                                                            <div key={optionIndex} className="flex items-center gap-2">
+                                                                <FormControl>
+                                                                    <RadioGroupItem value={form.getValues(`questions.${index}.options.${optionIndex}`)} id={`q${index}-o${optionIndex}`} />
+                                                                </FormControl>
+                                                                <Input
+                                                                    {...form.register(`questions.${index}.options.${optionIndex}`)}
+                                                                    placeholder={`Opsi ${optionIndex + 1}`}
+                                                                    className="flex-1"
+                                                                />
+                                                                {form.getValues(`questions.${index}.options`).length > 2 && (
+                                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index, optionIndex)}>
+                                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </RadioGroup>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                          )}
+                                        />
+                                         <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>Tambah Opsi</Button>
+                                    </div>
+                                ))}
+                                <Button type="button" variant="outline" onClick={() => append({ question: "", options: ["", ""], correctAnswer: undefined, id: Date.now() })}>Tambah Pertanyaan</Button>
+                            </div>
+                            
+                            <DialogFooter>
+                                <DialogClose asChild><Button type="button" variant="secondary" onClick={() => setEditingQuiz(null)}>Batal</Button></DialogClose>
+                                <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {editingQuiz ? 'Simpan Perubahan' : 'Simpan Kuis'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+
 
             {/* Import Quiz Dialog */}
             <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
@@ -563,7 +634,5 @@ export default function AdminPage() {
         </div>
     )
 }
-
-    
 
     
