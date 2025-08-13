@@ -247,7 +247,7 @@ export default function AdminPage() {
                                                               <FormLabel>Opsi Jawaban (pilih satu yang benar)</FormLabel>
                                                               {form.watch(`questions.${index}.options`).map((option, optionIndex) => (
                                                                 <div key={optionIndex} className="flex items-center gap-2">
-                                                                  <RadioGroupItem value={option} id={`q${index}-o${optionIndex}`} />
+                                                                  <RadioGroupItem value={form.watch(`questions.${index}.options.${optionIndex}`)} id={`q${index}-o${optionIndex}`} />
                                                                   <Input
                                                                       {...form.register(`questions.${index}.options.${optionIndex}`)}
                                                                       placeholder={`Opsi ${optionIndex + 1}`}
@@ -366,5 +366,3 @@ export default function AdminPage() {
         </div>
     )
 }
-
-    
