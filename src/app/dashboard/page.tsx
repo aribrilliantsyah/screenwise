@@ -122,7 +122,7 @@ export default function DashboardPage() {
                       <Button 
                         onClick={() => handleNavigation(quiz.id, `/quiz/${quiz.id}`)} 
                         className="w-full" 
-                        disabled={loadingQuiz || !canStartQuiz}
+                        disabled={loadingQuiz === quiz.id || !canStartQuiz}
                       >
                         {loadingQuiz === quiz.id ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -173,7 +173,7 @@ export default function DashboardPage() {
                           {status.passed ? 'Lulus' : 'Gagal'}
                       </div>
                   )}
-                  <Button onClick={() => handleNavigation(quiz.id, `/quiz/results?quizId=${quiz.id}`)} className="w-full" variant="secondary" disabled={!!loadingQuiz}>
+                  <Button onClick={() => handleNavigation(quiz.id, `/quiz/results?quizId=${quiz.id}`)} className="w-full" variant="secondary" disabled={loadingQuiz === quiz.id}>
                      {loadingQuiz === quiz.id ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
