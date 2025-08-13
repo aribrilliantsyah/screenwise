@@ -18,10 +18,16 @@ interface Attempt {
   timestamp: string;
 }
 
+const ITEMS_PER_PAGE = 5;
+
 export default function AdminPage() {
     const { isAdmin, loading: authLoading } = useAuth();
     const router = useRouter();
     const [attempts, setAttempts] = useState<Attempt[]>([]);
+
+    // State untuk paginasi
+    const [quizPage, setQuizPage] = useState(1);
+    const [attemptsPage, setAttemptsPage] = useState(1);
 
     useEffect(() => {
         if (!authLoading && !isAdmin) {
@@ -37,6 +43,15 @@ export default function AdminPage() {
         }
     }, []);
 
+    // Logika Paginasi Kuis
+    const totalQuizPages = Math.ceil(quizGroups.length / ITEMS_PER_PAGE);
+    const displayedQuizzes = quizGroups.slice((quizPage - 1) * ITEMS_PER_PAGE, quizPage * ITEMS_PER_PAGE);
+
+    // Logika Paginasi Peserta
+    const totalAttemptPages = Math.ceil(attempts.length / ITEMS_PER_PAGE);
+    const displayedAttempts = attempts.slice((attemptsPage - 1) * ITEMS_PER_PAGE, attemptsPage * ITEMS_PER_PAGE);
+
+
     if (authLoading || !isAdmin) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
@@ -48,7 +63,7 @@ export default function AdminPage() {
     return (
         <div className="container mx-auto py-10 px-4">
             <h1 className="text-4xl font-bold mb-8 font-headline">Dasbor Admin</h1>
-            <div className="grid gap-8 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-8">
                 <Card>
                     <CardHeader>
                         <CardTitle>Manajemen Kuis</CardTitle>
@@ -65,7 +80,7 @@ export default function AdminPage() {
                                </TableRow>
                            </TableHeader>
                            <TableBody>
-                               {quizGroups.map((group) => (
+                               {displayedQuizzes.map((group) => (
                                    <TableRow key={group.id}>
                                        <TableCell className="font-medium">{group.title}</TableCell>
                                        <TableCell>{group.questions.length}</TableCell>
@@ -78,7 +93,28 @@ export default function AdminPage() {
                                ))}
                            </TableBody>
                        </Table>
-                       <Button className="mt-4 w-full"><PlusCircle /> Tambah Kuis Baru</Button>
+                       <div className="flex items-center justify-between mt-4">
+                            <Button className="w-fit"><PlusCircle /> Tambah Kuis Baru</Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setQuizPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={quizPage === 1}
+                                >
+                                    Sebelumnya
+                                </Button>
+                                <span className="text-sm font-medium">
+                                    Halaman {quizPage} dari {totalQuizPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setQuizPage(prev => Math.min(prev + 1, totalQuizPages))}
+                                    disabled={quizPage === totalQuizPages}
+                                >
+                                    Selanjutnya
+                                </Button>
+                            </div>
+                       </div>
                     </CardContent>
                 </Card>
                  <Card>
@@ -97,7 +133,7 @@ export default function AdminPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {attempts.length > 0 ? attempts.map((attempt, index) => (
+                                {displayedAttempts.length > 0 ? displayedAttempts.map((attempt, index) => (
                                     <TableRow key={index}>
                                         <TableCell>{attempt.userEmail}</TableCell>
                                         <TableCell>{quizGroups.find(qg => qg.id === attempt.quizId)?.title || 'N/A'}</TableCell>
@@ -115,6 +151,27 @@ export default function AdminPage() {
                                 )}
                             </TableBody>
                         </Table>
+                         <div className="flex items-center justify-end mt-4">
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setAttemptsPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={attemptsPage === 1}
+                                >
+                                    Sebelumnya
+                                </Button>
+                                <span className="text-sm font-medium">
+                                    Halaman {attemptsPage} dari {totalAttemptPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setAttemptsPage(prev => Math.min(prev + 1, totalAttemptPages))}
+                                    disabled={attemptsPage === totalAttemptPages || totalAttemptPages === 0}
+                                >
+                                    Selanjutnya
+                                </Button>
+                            </div>
+                       </div>
                     </CardContent>
                 </Card>
             </div>
