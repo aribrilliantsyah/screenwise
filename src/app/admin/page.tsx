@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, PlusCircle, Edit, Trash2, GripVertical } from "lucide-react";
+import { Loader2, PlusCircle, Edit, Trash2 } from "lucide-react";
 import { getQuizGroups, saveQuizGroups, type QuizGroup } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -32,7 +32,7 @@ const ITEMS_PER_PAGE = 5;
 const questionSchema = z.object({
   question: z.string().min(1, "Pertanyaan tidak boleh kosong"),
   options: z.array(z.string().min(1, "Opsi tidak boleh kosong")).min(2, "Minimal 2 opsi"),
-  correctAnswer: z.string().min(1, "Jawaban benar harus dipilih"),
+  correctAnswer: z.string({ required_error: "Anda harus memilih jawaban yang benar." }).min(1, "Anda harus memilih jawaban yang benar."),
 });
 
 const quizFormSchema = z.object({
@@ -239,33 +239,38 @@ export default function AdminPage() {
                                                             <FormItem><FormLabel>Pertanyaan {index + 1}</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
                                                         )} />
                                                         
-                                                        <Controller
+                                                        <FormField
                                                           name={`questions.${index}.correctAnswer`}
                                                           control={form.control}
                                                           render={({ field }) => (
-                                                            <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-2">
-                                                              <FormLabel>Opsi Jawaban (pilih satu yang benar)</FormLabel>
-                                                              {form.watch(`questions.${index}.options`).map((option, optionIndex) => (
-                                                                <div key={optionIndex} className="flex items-center gap-2">
-                                                                  <RadioGroupItem value={form.watch(`questions.${index}.options.${optionIndex}`)} id={`q${index}-o${optionIndex}`} />
-                                                                  <Input
-                                                                      {...form.register(`questions.${index}.options.${optionIndex}`)}
-                                                                      placeholder={`Opsi ${optionIndex + 1}`}
-                                                                      className="flex-1"
-                                                                    />
-                                                                  {form.getValues(`questions.${index}.options`).length > 2 && (
-                                                                      <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index, optionIndex)}>
-                                                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                                                      </Button>
-                                                                  )}
-                                                                </div>
-                                                              ))}
-                                                              <FormMessage>{form.formState.errors.questions?.[index]?.correctAnswer?.message}</FormMessage>
-                                                            </RadioGroup>
+                                                            <FormItem>
+                                                                <FormLabel>Opsi Jawaban (pilih satu yang benar)</FormLabel>
+                                                                <FormControl>
+                                                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-2">
+                                                                        {form.watch(`questions.${index}.options`).map((option, optionIndex) => (
+                                                                            <div key={optionIndex} className="flex items-center gap-2">
+                                                                                <FormControl>
+                                                                                    <RadioGroupItem value={form.watch(`questions.${index}.options.${optionIndex}`)} id={`q${index}-o${optionIndex}`} />
+                                                                                </FormControl>
+                                                                                <Input
+                                                                                    {...form.register(`questions.${index}.options.${optionIndex}`)}
+                                                                                    placeholder={`Opsi ${optionIndex + 1}`}
+                                                                                    className="flex-1"
+                                                                                />
+                                                                                {form.getValues(`questions.${index}.options`).length > 2 && (
+                                                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index, optionIndex)}>
+                                                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                                                    </Button>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                    </RadioGroup>
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
                                                           )}
                                                         />
                                                          <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>Tambah Opsi</Button>
-
                                                     </div>
                                                 ))}
                                                 <Button type="button" variant="outline" onClick={() => append({ question: "", options: ["", ""], correctAnswer: "" })}>Tambah Pertanyaan</Button>
