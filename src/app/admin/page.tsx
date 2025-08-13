@@ -138,9 +138,20 @@ export default function AdminPage() {
     };
 
     const handleDownloadTemplate = () => {
-        const worksheet = XLSX.utils.json_to_sheet([
-            { 'Pertanyaan': 'Apa ibu kota Indonesia?', 'Opsi 1': '(benar)Jakarta', 'Opsi 2': 'Surabaya', 'Opsi 3': 'Bandung' },
-        ]);
+        const header = [
+            ["Judul Kuis", "Kuis Pengetahuan Dasar"],
+            ["Deskripsi", "Uji pengetahuan dasar Anda."],
+            ["Skor Lulus (%)", 70],
+            ["Batas Waktu (detik)", 300],
+            [], // Baris kosong sebagai pemisah
+            ['Pertanyaan', 'Opsi 1', 'Opsi 2', 'Opsi 3', 'Opsi 4', 'Opsi 5']
+        ];
+        const exampleData = [
+            ['Apa ibu kota Indonesia?', '(benar)Jakarta', 'Surabaya', 'Bandung'],
+            ['Planet apa yang dikenal sebagai Planet Merah?', 'Bumi', '(benar)Mars', 'Jupiter', 'Venus'],
+        ];
+
+        const worksheet = XLSX.utils.aoa_to_sheet([...header, ...exampleData]);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Template Kuis");
         XLSX.writeFile(workbook, "template_kuis.xlsx");
@@ -157,23 +168,40 @@ export default function AdminPage() {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(worksheet) as any[];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
-                const parsedQuestions: Omit<Question, 'id'>[] = json.map((row, index) => {
-                    const question = row['Pertanyaan'];
-                    if (!question) throw new Error(`Pertanyaan di baris ${index + 2} kosong.`);
+                if (json.length < 6) throw new Error("Format template tidak valid. Pastikan template memiliki header metadata dan pertanyaan.");
+
+                // Ekstrak Metadata
+                const title = json[0][1] || `Kuis Impor - ${new Date().toLocaleString()}`;
+                const description = json[1][1] || "Deskripsi kuis yang diimpor.";
+                const passingScore = parseInt(String(json[2][1]), 10) || 70;
+                const timeLimitSeconds = parseInt(String(json[3][1]), 10) || 300;
+
+                // Konversi baris pertanyaan ke objek
+                const questionRows = json.slice(5); // Mulai dari baris ke-6
+                const questionHeaders = json[5] as string[];
+
+                const parsedQuestions: Omit<Question, 'id'>[] = questionRows.map((row, rowIndex) => {
+                    const rowData: { [key: string]: any } = {};
+                    questionHeaders.forEach((header, colIndex) => {
+                       rowData[header] = row[colIndex];
+                    });
+                    
+                    const question = rowData['Pertanyaan'];
+                    if (!question) throw new Error(`Pertanyaan di baris Excel ${rowIndex + 7} kosong.`);
                     
                     const options: string[] = [];
                     let correctAnswer = '';
                     
                     for (let i = 1; i <= 5; i++) {
                         const optionKey = `Opsi ${i}`;
-                        let option = row[optionKey];
+                        let option = rowData[optionKey];
                         if (option) {
                            option = String(option);
                            if (option.startsWith('(benar)')) {
                                const cleanOption = option.replace('(benar)', '').trim();
-                               if(correctAnswer) throw new Error(`Pertanyaan di baris ${index + 2} memiliki lebih dari satu jawaban benar.`);
+                               if(correctAnswer) throw new Error(`Pertanyaan di baris Excel ${rowIndex + 7} memiliki lebih dari satu jawaban benar.`);
                                correctAnswer = cleanOption;
                                options.push(cleanOption);
                            } else {
@@ -182,21 +210,21 @@ export default function AdminPage() {
                         }
                     }
 
-                    if (!correctAnswer) throw new Error(`Tidak ada jawaban benar yang ditandai dengan '(benar)' untuk pertanyaan di baris ${index + 2}.`);
-                    if (options.length < 2) throw new Error(`Pertanyaan di baris ${index + 2} harus memiliki minimal 2 opsi.`);
+                    if (!correctAnswer) throw new Error(`Tidak ada jawaban benar yang ditandai dengan '(benar)' untuk pertanyaan di baris Excel ${rowIndex + 7}.`);
+                    if (options.length < 2) throw new Error(`Pertanyaan di baris Excel ${rowIndex + 7} harus memiliki minimal 2 opsi.`);
 
                     return { question, options, correctAnswer };
-                });
+                }).filter(q => q.question); // Filter baris kosong
 
                 if (parsedQuestions.length === 0) {
                    throw new Error("File Excel tidak mengandung pertanyaan atau formatnya salah.");
                 }
                 
                 const tempQuizData = {
-                  title: `Kuis Impor - ${new Date().toLocaleString()}`,
-                  description: "Kuis yang diimpor dari file Excel.",
-                  passingScore: 70,
-                  timeLimitSeconds: 300,
+                  title,
+                  description,
+                  passingScore,
+                  timeLimitSeconds,
                   questions: parsedQuestions,
                 };
 
@@ -526,3 +554,5 @@ export default function AdminPage() {
         </div>
     )
 }
+
+    
