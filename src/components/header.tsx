@@ -1,9 +1,14 @@
+
 "use client";
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { User as UserIcon, LogOut, LayoutDashboard } from "lucide-react";
+
 
 export function Header() {
   const { user, isAdmin, logout } = useAuth();
@@ -17,6 +22,15 @@ export function Header() {
   const getDashboardLink = () => {
     if (!user) return "/";
     return isAdmin ? "/admin" : "/dashboard";
+  }
+
+  const getInitials = (name: string) => {
+    if (!name) return "P";
+    const names = name.split(' ');
+    if (names.length > 1) {
+        return names[0][0] + names[names.length - 1][0];
+    }
+    return name[0];
   }
 
   return (
@@ -36,19 +50,44 @@ export function Header() {
               </Button>
             </>
           ) : (
-            <>
-              {isAdmin && (
-                 <Button variant="outline" asChild>
-                    <Link href="/admin">Dasbor Admin</Link>
-                 </Button>
-              )}
-               {!isAdmin && (
-                 <Button variant="outline" asChild>
-                    <Link href="/dashboard">Dasbor</Link>
-                 </Button>
-              )}
-              <Button onClick={handleLogout}>Keluar</Button>
-            </>
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                        <Avatar className="h-10 w-10">
+                            <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${user.name}`} alt={user.name} />
+                            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                        </Avatar>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.name}</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                        {user.email}
+                        </p>
+                    </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                       <Link href={getDashboardLink()}>
+                          <LayoutDashboard className="mr-2 h-4 w-4"/>
+                          <span>Dasbor</span>
+                       </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                       <Link href="/profile">
+                          <UserIcon className="mr-2 h-4 w-4"/>
+                          <span>Profil</span>
+                       </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                       <LogOut className="mr-2 h-4 w-4"/>
+                       <span>Keluar</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>

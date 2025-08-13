@@ -12,6 +12,7 @@ export interface User {
   phone: string;
 }
 
+export type UpdateUserData = Omit<User, 'email' | 'gender'>;
 export type SignupData = User & { password: string };
 type StoredUser = SignupData;
 
@@ -83,5 +84,45 @@ export const localAuth = {
     if (typeof window === 'undefined') return null;
     const sessionRaw = localStorage.getItem(SESSION_KEY);
     return sessionRaw ? JSON.parse(sessionRaw) : null;
+  },
+
+  updateUser: (email: string, data: UpdateUserData): User | null => {
+      const users = getStoredUsers();
+      const userIndex = users.findIndex(u => u.email === email);
+      if (userIndex === -1) {
+          return null;
+      }
+      
+      // Update data pengguna di array
+      const currentUser = users[userIndex];
+      users[userIndex] = { ...currentUser, ...data };
+      setStoredUsers(users);
+
+      // Update data sesi
+      const sessionUser = localAuth.getSession();
+      if(sessionUser && sessionUser.email === email) {
+          const updatedSessionUser = { ...sessionUser, ...data};
+          localStorage.setItem(SESSION_KEY, JSON.stringify(updatedSessionUser));
+          return updatedSessionUser;
+      }
+      
+      const { password, ...userWithoutPassword } = users[userIndex];
+      return userWithoutPassword;
+  },
+
+  changePassword: (email: string, oldPassword: string, newPassword: string): boolean => {
+      const users = getStoredUsers();
+      const userIndex = users.findIndex(u => u.email === email);
+      if (userIndex === -1) {
+          return false;
+      }
+
+      if(users[userIndex].password !== oldPassword) {
+          return false; // Kata sandi lama tidak cocok
+      }
+
+      users[userIndex].password = newPassword;
+      setStoredUsers(users);
+      return true;
   }
 };

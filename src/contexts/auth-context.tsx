@@ -7,6 +7,7 @@ import { localAuth, type User, type SignupData } from '@/lib/auth';
 
 interface AuthContextType {
   user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
   isAdmin: boolean;
   loading: boolean;
   login: (email: string, pass: string) => boolean;
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const isAdmin = user?.email === 'admin@screenwise.com';
 
-  const value = { user, isAdmin, loading, login, signup, logout };
+  const value = { user, setUser, isAdmin, loading, login, signup, logout };
 
   return (
     <AuthContext.Provider value={value}>
