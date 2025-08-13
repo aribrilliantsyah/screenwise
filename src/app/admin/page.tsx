@@ -4,12 +4,12 @@
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, PlusCircle, Edit, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Edit, Trash2, GripVertical } from "lucide-react";
 import { getQuizGroups, saveQuizGroups, type QuizGroup } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface Attempt {
   userEmail: string;
@@ -31,7 +32,7 @@ const ITEMS_PER_PAGE = 5;
 const questionSchema = z.object({
   question: z.string().min(1, "Pertanyaan tidak boleh kosong"),
   options: z.array(z.string().min(1, "Opsi tidak boleh kosong")).min(2, "Minimal 2 opsi"),
-  correctAnswer: z.string().min(1, "Jawaban benar harus diisi"),
+  correctAnswer: z.string().min(1, "Jawaban benar harus dipilih"),
 });
 
 const quizFormSchema = z.object({
@@ -83,7 +84,7 @@ export default function AdminPage() {
         },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields, append, remove, update } = useFieldArray({
         control: form.control,
         name: "questions"
     });
@@ -91,10 +92,18 @@ export default function AdminPage() {
     const onSubmit = (values: z.infer<typeof quizFormSchema>) => {
         setIsSubmitting(true);
         try {
-            const newQuiz: QuizGroup = {
-                id: values.title.toLowerCase().replace(/\s+/g, '-'), // Generate ID from title
+            const finalValues = {
                 ...values,
-                questions: values.questions.map((q, index) => ({ ...q, id: index + 1 })),
+                questions: values.questions.map(q => ({
+                    ...q,
+                    options: q.options.filter(opt => opt && opt.trim() !== '') // Hapus opsi kosong
+                }))
+            };
+
+            const newQuiz: QuizGroup = {
+                id: finalValues.title.toLowerCase().replace(/\s+/g, '-'), // Generate ID from title
+                ...finalValues,
+                questions: finalValues.questions.map((q, index) => ({ ...q, id: index + 1 })),
             };
 
             const updatedQuizzes = [...quizzes, newQuiz];
@@ -127,6 +136,25 @@ export default function AdminPage() {
     // Logika Paginasi Peserta
     const totalAttemptPages = Math.ceil(attempts.length / ITEMS_PER_PAGE);
     const displayedAttempts = attempts.slice((attemptsPage - 1) * ITEMS_PER_PAGE, attemptsPage * ITEMS_PER_PAGE);
+
+    // Fungsi untuk menambah dan menghapus opsi jawaban
+    const addOption = (questionIndex: number) => {
+        const question = form.getValues(`questions.${questionIndex}`);
+        update(questionIndex, {
+            ...question,
+            options: [...question.options, '']
+        });
+    };
+
+    const removeOption = (questionIndex: number, optionIndex: number) => {
+        const question = form.getValues(`questions.${questionIndex}`);
+        const newOptions = [...question.options];
+        newOptions.splice(optionIndex, 1);
+        update(questionIndex, {
+            ...question,
+            options: newOptions
+        });
+    };
 
 
     if (authLoading || !isAdmin) {
@@ -203,26 +231,41 @@ export default function AdminPage() {
                                                 <h3 className="text-lg font-medium">Pertanyaan</h3>
                                                 {fields.map((item, index) => (
                                                     <div key={item.id} className="p-4 border rounded-md space-y-3 relative">
-                                                        <FormField name={`questions.${index}.question`} control={form.control} render={({ field }) => (
-                                                            <FormItem><FormLabel>Pertanyaan {index + 1}</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
-                                                        )} />
-                                                        
-                                                        <FormField name={`questions.${index}.options`} control={form.control} render={({ field }) => (
-                                                            <FormItem><FormLabel>Opsi Jawaban (opsi pertama adalah jawaban benar)</FormLabel>
-                                                                <div className="space-y-2">
-                                                                    <FormControl><Input {...form.register(`questions.${index}.options.0`)} placeholder="Opsi 1 (Jawaban Benar)" onChange={e => form.setValue(`questions.${index}.correctAnswer`, e.target.value)}/></FormControl>
-                                                                    <FormControl><Input {...form.register(`questions.${index}.options.1`)} placeholder="Opsi 2"/></FormControl>
-                                                                    <FormControl><Input {...form.register(`questions.${index}.options.2`)} placeholder="Opsi 3 (opsional)"/></FormControl>
-                                                                    <FormControl><Input {...form.register(`questions.${index}.options.3`)} placeholder="Opsi 4 (opsional)"/></FormControl>
-                                                                </div>
-                                                            <FormMessage />
-                                                            </FormItem>
-                                                        )} />
-                                                        
                                                         <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="absolute top-2 right-2 h-7 w-7">
                                                            <Trash2 className="h-4 w-4" />
                                                            <span className="sr-only">Hapus Pertanyaan</span>
                                                         </Button>
+                                                        <FormField name={`questions.${index}.question`} control={form.control} render={({ field }) => (
+                                                            <FormItem><FormLabel>Pertanyaan {index + 1}</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+                                                        )} />
+                                                        
+                                                        <Controller
+                                                          name={`questions.${index}.correctAnswer`}
+                                                          control={form.control}
+                                                          render={({ field }) => (
+                                                            <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-2">
+                                                              <FormLabel>Opsi Jawaban (pilih satu yang benar)</FormLabel>
+                                                              {form.watch(`questions.${index}.options`).map((option, optionIndex) => (
+                                                                <div key={optionIndex} className="flex items-center gap-2">
+                                                                  <RadioGroupItem value={option} id={`q${index}-o${optionIndex}`} />
+                                                                  <Input
+                                                                      {...form.register(`questions.${index}.options.${optionIndex}`)}
+                                                                      placeholder={`Opsi ${optionIndex + 1}`}
+                                                                      className="flex-1"
+                                                                    />
+                                                                  {form.getValues(`questions.${index}.options`).length > 2 && (
+                                                                      <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index, optionIndex)}>
+                                                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                                                      </Button>
+                                                                  )}
+                                                                </div>
+                                                              ))}
+                                                              <FormMessage>{form.formState.errors.questions?.[index]?.correctAnswer?.message}</FormMessage>
+                                                            </RadioGroup>
+                                                          )}
+                                                        />
+                                                         <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>Tambah Opsi</Button>
+
                                                     </div>
                                                 ))}
                                                 <Button type="button" variant="outline" onClick={() => append({ question: "", options: ["", ""], correctAnswer: "" })}>Tambah Pertanyaan</Button>
