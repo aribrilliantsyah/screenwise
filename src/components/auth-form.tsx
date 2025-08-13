@@ -107,7 +107,7 @@ export function AuthForm({ variant }: AuthFormProps) {
                 name="name"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Nama Lengkap</FormLabel>
+                    <FormLabel>Nama Lengkap <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                     <Input placeholder="John Doe" {...field} />
                     </FormControl>
@@ -121,7 +121,7 @@ export function AuthForm({ variant }: AuthFormProps) {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
               <FormControl>
                 <Input placeholder="nama@contoh.com" {...field} />
               </FormControl>
@@ -134,7 +134,7 @@ export function AuthForm({ variant }: AuthFormProps) {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Kata Sandi</FormLabel>
+              <FormLabel>Kata Sandi <span className="text-destructive">*</span></FormLabel>
               <FormControl>
                 <Input type="password" placeholder="••••••••" {...field} />
               </FormControl>
@@ -149,7 +149,7 @@ export function AuthForm({ variant }: AuthFormProps) {
                 name="address"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Alamat</FormLabel>
+                    <FormLabel>Alamat <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                     <Input placeholder="Jl. Pahlawan No. 10" {...field} />
                     </FormControl>
@@ -175,7 +175,7 @@ export function AuthForm({ variant }: AuthFormProps) {
                 name="gender"
                 render={({ field }) => (
                 <FormItem className="space-y-3">
-                    <FormLabel>Jenis Kelamin</FormLabel>
+                    <FormLabel>Jenis Kelamin <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                     <RadioGroup
                         onValueChange={field.onChange}
@@ -205,7 +205,7 @@ export function AuthForm({ variant }: AuthFormProps) {
                 name="whatsapp"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Nomor WhatsApp</FormLabel>
+                    <FormLabel>Nomor WhatsApp <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                     <Input type="tel" placeholder="081234567890" {...field} />
                     </FormControl>
@@ -218,7 +218,7 @@ export function AuthForm({ variant }: AuthFormProps) {
                 name="phone"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Nomor HP</FormLabel>
+                    <FormLabel>Nomor HP <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                     <Input type="tel" placeholder="081234567890" {...field} />
                     </FormControl>
