@@ -77,7 +77,8 @@ export default function ResultsPage() {
       setAnalysis(result);
     } catch (error) {
       console.error("Gagal mendapatkan analisis AI:", error);
-      setAnalysis({ keyInsights: "Tidak dapat mengambil analisis.", suggestedImprovements: "Silakan coba lagi nanti." });
+      // Memberikan pesan error yang lebih deskriptif kepada pengguna
+      setAnalysis({ keyInsights: "Analisis AI tidak tersedia saat ini.", suggestedImprovements: "Pastikan kunci API GenAI telah dikonfigurasi dengan benar di variabel lingkungan." });
     } finally {
       setLoadingAnalysis(false);
     }
@@ -190,3 +191,4 @@ export default function ResultsPage() {
     </div>
   );
 }
+
