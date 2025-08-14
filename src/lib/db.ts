@@ -1,12 +1,14 @@
 
 import { Sequelize, DataTypes, Model, Optional } from 'sequelize';
 import path from 'path';
+import sqlite3 from 'sqlite3';
 
 const storage = path.join(process.cwd(), 'db.sqlite');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: storage,
   logging: false, 
+  dialectModule: sqlite3,
 });
 
 // --- User Model ---
