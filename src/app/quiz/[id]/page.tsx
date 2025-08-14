@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo } from "react";
 import QuizClient from "@/components/quiz/quiz-client";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { getQuizGroups, type QuizGroup } from "@/data/quiz-data";
+import { getQuizzes, type QuizWithQuestions } from "@/actions/quiz";
 import { Button } from "@/components/ui/button";
 
 export default function DynamicQuizPage() {
@@ -14,22 +14,24 @@ export default function DynamicQuizPage() {
   const params = useParams();
   const { user, loading: authLoading } = useAuth();
   
-  const [allQuizzes, setAllQuizzes] = useState<QuizGroup[]>([]);
+  const [allQuizzes, setAllQuizzes] = useState<QuizWithQuestions[]>([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(true);
   
-  const quizId = useMemo(() => Array.isArray(params.id) ? params.id[0] : params.id, [params.id]);
+  const quizSlug = useMemo(() => Array.isArray(params.id) ? params.id[0] : params.id, [params.id]);
   
   useEffect(() => {
-    // Only run on the client
-    const quizzes = getQuizGroups();
-    setAllQuizzes(quizzes);
-    setLoadingQuizzes(false);
+    async function loadData() {
+        const quizzes = await getQuizzes();
+        setAllQuizzes(quizzes);
+        setLoadingQuizzes(false);
+    }
+    loadData();
   }, []);
   
   const quiz = useMemo(() => {
     if (loadingQuizzes) return null; // Jangan mencari sampai data siap
-    return allQuizzes.find(q => q.id === quizId);
-  }, [quizId, allQuizzes, loadingQuizzes]);
+    return allQuizzes.find(q => q.slug === quizSlug);
+  }, [quizSlug, allQuizzes, loadingQuizzes]);
 
   useEffect(() => {
     if (!authLoading && !user) {

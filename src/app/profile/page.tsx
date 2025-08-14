@@ -72,8 +72,11 @@ export default function ProfilePage() {
     });
 
     useEffect(() => {
-        const storedUniversities = localAuth.getAllUniversities();
+      async function fetchUniversities() {
+        const storedUniversities = await localAuth.getAllUniversities();
         setUniversityOptions(storedUniversities.map(u => ({ value: u, label: u })));
+      }
+      fetchUniversities();
     }, []);
 
     // Efek untuk mereset form jika user berubah (misal setelah login)
@@ -102,10 +105,10 @@ export default function ProfilePage() {
         return null; // Tampilkan null sementara redirect
     }
 
-    const onProfileSubmit = (values: z.infer<typeof profileSchema>) => {
+    const onProfileSubmit = async (values: z.infer<typeof profileSchema>) => {
         setProfileLoading(true);
         try {
-            const updatedUser = localAuth.updateUser(user.email, values);
+            const updatedUser = await localAuth.updateUser(user.id, values);
             if (updatedUser) {
                 setUser(updatedUser); // Update state di context
                 toast({
@@ -126,10 +129,10 @@ export default function ProfilePage() {
         }
     };
 
-    const onPasswordSubmit = (values: z.infer<typeof passwordSchema>) => {
+    const onPasswordSubmit = async (values: z.infer<typeof passwordSchema>) => {
         setPasswordLoading(true);
         try {
-            const success = localAuth.changePassword(user.email, values.oldPassword, values.newPassword);
+            const success = await localAuth.changePassword(user.id, values.oldPassword, values.newPassword);
             if (success) {
                 toast({
                     title: "Kata Sandi Diperbarui",

@@ -1,7 +1,6 @@
-
-// This file is DEPRECATED and will be removed in a future version.
-// Data is now managed via Prisma and SQLite.
-// The data structures are defined in `prisma/schema.prisma`.
+// This file is DEPRECATED and has been replaced by Prisma and server actions.
+// Data structures are now defined in `prisma/schema.prisma`.
+// Data fetching and mutation is handled in `src/actions/*.ts` files.
 
 export interface Question {
   id: number;

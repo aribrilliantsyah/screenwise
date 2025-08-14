@@ -22,7 +22,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Combobox } from "./combobox";
-import { localAuth } from "@/lib/auth";
+import { localAuth, type SignupData } from "@/lib/auth";
 
 // Skema untuk langkah 1: Data Diri
 const step1Schema = z.object({
@@ -89,10 +89,13 @@ export function AuthForm({ variant }: AuthFormProps) {
   });
 
   useEffect(() => {
-    if (variant === 'signup') {
-        const storedUniversities = localAuth.getAllUniversities();
-        setUniversityOptions(storedUniversities.map(u => ({ value: u, label: u })));
+    async function fetchUniversities() {
+      if (variant === 'signup') {
+          const storedUniversities = await localAuth.getAllUniversities();
+          setUniversityOptions(storedUniversities.map(u => ({ value: u, label: u })));
+      }
     }
+    fetchUniversities();
   }, [variant]);
 
 
@@ -122,27 +125,28 @@ export function AuthForm({ variant }: AuthFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
-      let success = false;
       if (variant === "signup") {
         // Gabungkan data dari semua langkah sebelum submit
-        const finalData = { ...form.getValues(), ...values };
-        success = signup(finalData as z.infer<typeof signupSchema>);
+        const finalData = { ...form.getValues(), ...values } as SignupData;
+        const success = await signup(finalData);
         if (!success) throw new Error("Email ini sudah terdaftar. Silakan masuk.");
-      } else {
-        success = login(values.email, values.password);
-        if (!success) throw new Error("Email atau kata sandi salah.");
-      }
-      
-      if (success) {
+        
         toast({
-            title: variant === 'signup' ? "Pendaftaran Berhasil" : "Login Berhasil",
+            title: "Pendaftaran Berhasil",
             description: "Anda akan diarahkan ke dasbor.",
         });
-        if (values.email === 'admin@screenwise.com') {
-            router.push("/admin");
-        } else {
-            router.push("/dashboard");
-        }
+        router.push("/dashboard");
+
+      } else {
+        const success = await login(values.email, values.password);
+        if (!success) throw new Error("Email atau kata sandi salah.");
+
+        toast({
+            title: "Login Berhasil",
+            description: "Anda akan diarahkan.",
+        });
+        const session = localAuth.getSession();
+        router.push(session?.isAdmin ? "/admin" : "/dashboard");
       }
     } catch (error: any) {
       toast({

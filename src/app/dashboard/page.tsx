@@ -2,7 +2,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import { getQuizGroups, type QuizGroup } from "@/data/quiz-data";
+import { getQuizzes, type QuizWithQuestions } from "@/actions/quiz";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2, PlayCircle, BarChart2, HelpCircle, Clock, Award, LucideRedo, CheckCheck, ClipboardList, List } from "lucide-react";
@@ -11,14 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 interface AttemptStatus {
-  [quizId: string]: {
+  [quizId: number]: {
     passed: boolean;
     score: number;
   } | null;
 }
 
 interface ActiveQuizSession {
-    quizId: string;
+    quizId: number;
     timeLeft: number;
     answers: Record<string, string>;
     startTime: number;
@@ -28,10 +28,11 @@ interface ActiveQuizSession {
 export default function DashboardPage() {
   const { user, loading, isAdmin } = useAuth();
   const router = useRouter();
-  const [allQuizzes, setAllQuizzes] = useState<QuizGroup[]>([]);
+  const [allQuizzes, setAllQuizzes] = useState<QuizWithQuestions[]>([]);
   const [attemptStatus, setAttemptStatus] = useState<AttemptStatus>({});
   const [activeSession, setActiveSession] = useState<ActiveQuizSession | null>(null);
-  const [loadingQuiz, setLoadingQuiz] = useState<string | null>(null);
+  const [loadingQuiz, setLoadingQuiz] = useState<number | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   
 
   useEffect(() => {
@@ -45,38 +46,44 @@ export default function DashboardPage() {
   }, [user, loading, isAdmin, router]);
 
   useEffect(() => {
-    // Memuat data dari localStorage di dalam useEffect untuk mencegah infinite loop
-    const quizzes = getQuizGroups();
-    setAllQuizzes(quizzes);
+    async function loadData() {
+        if (!user) return;
+        setIsLoadingData(true);
+        const quizzes = await getQuizzes();
+        setAllQuizzes(quizzes);
+
+        // Load attempt history
+        const status: AttemptStatus = {};
+        quizzes.forEach(quiz => {
+            const attemptRaw = localStorage.getItem(`quiz_attempt_${user.email}_${quiz.id}`);
+            if (attemptRaw) {
+                const attempt = JSON.parse(attemptRaw);
+                status[quiz.id] = { passed: attempt.passed, score: attempt.score };
+            } else {
+                status[quiz.id] = null;
+            }
+        });
+        setAttemptStatus(status);
+
+        // Load active session
+        const activeSessionRaw = localStorage.getItem(`active_quiz_session_${user.email}`);
+        if (activeSessionRaw) {
+            setActiveSession(JSON.parse(activeSessionRaw));
+        }
+        setIsLoadingData(false);
+    }
 
     if (user) {
-      // Load attempt history
-      const status: AttemptStatus = {};
-      quizzes.forEach(quiz => {
-        const attemptRaw = localStorage.getItem(`quiz_attempt_${user.email}_${quiz.id}`);
-        if (attemptRaw) {
-          const attempt = JSON.parse(attemptRaw);
-          status[quiz.id] = { passed: attempt.passed, score: attempt.score };
-        } else {
-          status[quiz.id] = null;
-        }
-      });
-      setAttemptStatus(status);
-
-      // Load active session
-      const activeSessionRaw = localStorage.getItem(`active_quiz_session_${user.email}`);
-      if (activeSessionRaw) {
-          setActiveSession(JSON.parse(activeSessionRaw));
-      }
+        loadData();
     }
   }, [user]);
 
-  const handleNavigation = (quizId: string, path: string) => {
+  const handleNavigation = (quizId: number, path: string) => {
     setLoadingQuiz(quizId);
     router.push(path);
   };
 
-  if (loading || !user || isAdmin) {
+  if (loading || !user || isAdmin || isLoadingData) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -126,7 +133,7 @@ export default function DashboardPage() {
                       </CardContent>
                       <CardFooter className="bg-muted/50 p-4">
                         <Button 
-                          onClick={() => handleNavigation(quiz.id, `/quiz/${quiz.id}`)} 
+                          onClick={() => handleNavigation(quiz.id, `/quiz/${quiz.slug}`)} 
                           className="w-full" 
                           disabled={loadingQuiz === quiz.id || !canStartQuiz}
                         >

@@ -10,8 +10,8 @@ interface AuthContextType {
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   isAdmin: boolean;
   loading: boolean;
-  login: (email: string, pass: string) => boolean;
-  signup: (data: SignupData) => boolean;
+  login: (email: string, pass: string) => Promise<boolean>;
+  signup: (data: SignupData) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -28,13 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (sessionUser) {
       setUser(sessionUser);
     }
-    // Buat pengguna admin default jika belum ada
-    localAuth.createDefaultAdmin();
     setLoading(false);
   }, []);
 
-  const login = (email: string, pass: string): boolean => {
-    const loggedInUser = localAuth.login(email, pass);
+  const login = async (email: string, pass: string): Promise<boolean> => {
+    const loggedInUser = await localAuth.login(email, pass);
     if (loggedInUser) {
       setUser(loggedInUser);
       return true;
@@ -42,8 +40,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
-  const signup = (data: SignupData): boolean => {
-    const newUser = localAuth.signup(data);
+  const signup = async (data: SignupData): Promise<boolean> => {
+    const newUser = await localAuth.signup(data);
     if (newUser) {
       setUser(newUser);
       return true;
@@ -57,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
   
-  const isAdmin = user?.email === 'admin@screenwise.com';
+  const isAdmin = user?.isAdmin || false;
 
   const value = { user, setUser, isAdmin, loading, login, signup, logout };
 

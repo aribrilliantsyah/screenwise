@@ -1,76 +1,55 @@
-// WARNING: This is an insecure, demonstration-only authentication system.
-// Do NOT use this in a production environment. Passwords are stored in plaintext in localStorage.
-// This file is DEPRECATED and will be replaced by a database-backed auth system.
 
-export interface User {
-  email: string;
-  name: string;
-  address: string;
-  university?: string;
-  gender: "Laki-laki" | "Perempuan";
-  whatsapp: string;
-  phone: string;
-  photo?: string; // Data URI for the photo
-}
+import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/prisma';
+import type { User as PrismaUser } from '@prisma/client';
 
-export type UpdateUserData = Omit<User, 'email' | 'gender'>;
-export type SignupData = User & { password: string, confirmPassword?: string };
-type StoredUser = User & { password: string };
+// Re-export User type from Prisma, but omit password hash for client-side safety.
+export type User = Omit<PrismaUser, 'passwordHash'>;
 
-const USERS_KEY = 'screenwise_users';
+export type SignupData = Omit<PrismaUser, 'id' | 'createdAt' | 'updatedAt' | 'isAdmin'> & { password?: string };
+
 const SESSION_KEY = 'screenwise_session';
 
-const getStoredUsers = (): StoredUser[] => {
-  if (typeof window === 'undefined') return [];
-  const usersRaw = localStorage.getItem(USERS_KEY);
-  return usersRaw ? JSON.parse(usersRaw) : [];
-};
-
-const setStoredUsers = (users: StoredUser[]) => {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-};
-
 export const localAuth = {
-  createDefaultAdmin: () => {
-    const users = getStoredUsers();
-    const adminExists = users.some(u => u.email === 'admin@screenwise.com');
-    if (!adminExists) {
-      users.push({ 
-        email: 'admin@screenwise.com', 
-        password: 'rahasia',
-        name: 'Admin',
-        address: 'Kantor Pusat',
-        gender: 'Laki-laki',
-        whatsapp: '0',
-        phone: '0'
-      });
-      setStoredUsers(users);
-    }
-  },
   
-  signup: (data: SignupData): User | null => {
-    const users = getStoredUsers();
-    const userExists = users.some(u => u.email === data.email);
+  signup: async (data: SignupData): Promise<User | null> => {
+    const userExists = await prisma.user.findUnique({ where: { email: data.email }});
     if (userExists) {
-      return null; // Pengguna sudah ada
+      return null; // User already exists
     }
-    
-    const { confirmPassword, ...newUser } = data;
-    users.push(newUser);
-    setStoredUsers(users);
-    
-    const { password, ...userWithoutPassword } = newUser;
-    localStorage.setItem(SESSION_KEY, JSON.stringify(userWithoutPassword));
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(data.password || 'password', salt);
+
+    const newUser = await prisma.user.create({
+        data: {
+            email: data.email,
+            passwordHash,
+            name: data.name,
+            address: data.address,
+            gender: data.gender,
+            whatsapp: data.whatsapp,
+            phone: data.phone,
+            photo: data.photo,
+            university: data.university,
+            isAdmin: false, // Default user is not an admin
+        }
+    });
+
+    const { passwordHash: _, ...userWithoutPassword } = newUser;
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(userWithoutPassword));
+    }
     return userWithoutPassword;
   },
 
-  login: (email: string, password: string): User | null => {
-    const users = getStoredUsers();
-    const foundUser = users.find(u => u.email === email && u.password === password);
-    if (foundUser) {
-      const { password, ...userWithoutPassword } = foundUser;
-      localStorage.setItem(SESSION_KEY, JSON.stringify(userWithoutPassword));
+  login: async (email: string, password: string): Promise<User | null> => {
+    const user = await prisma.user.findUnique({ where: { email }});
+    if (user && await bcrypt.compare(password, user.passwordHash)) {
+      const { passwordHash, ...userWithoutPassword } = user;
+       if (typeof window !== 'undefined') {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(userWithoutPassword));
+       }
       return userWithoutPassword;
     }
     return null;
@@ -87,49 +66,52 @@ export const localAuth = {
     return sessionRaw ? JSON.parse(sessionRaw) : null;
   },
 
-  updateUser: (email: string, data: UpdateUserData): User | null => {
-      const users = getStoredUsers();
-      const userIndex = users.findIndex(u => u.email === email);
-      if (userIndex === -1) {
-          return null;
-      }
-      
-      const currentUser = users[userIndex];
-      users[userIndex] = { ...currentUser, ...data };
-      setStoredUsers(users);
+  updateUser: async (userId: number, data: Partial<User>): Promise<User | null> => {
+      try {
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data,
+        });
 
-      const sessionUser = localAuth.getSession();
-      if(sessionUser && sessionUser.email === email) {
-          const updatedSessionUser = { ...sessionUser, ...data};
-          localStorage.setItem(SESSION_KEY, JSON.stringify(updatedSessionUser));
-          return updatedSessionUser;
+        const { passwordHash, ...userWithoutPassword } = updatedUser;
+        if (typeof window !== 'undefined') {
+            const sessionUser = localAuth.getSession();
+            if(sessionUser && sessionUser.id === userId) {
+                const updatedSessionUser = { ...sessionUser, ...userWithoutPassword};
+                localStorage.setItem(SESSION_KEY, JSON.stringify(updatedSessionUser));
+            }
+        }
+        return userWithoutPassword;
+      } catch (error) {
+        console.error("Failed to update user:", error);
+        return null;
       }
-      
-      const { password, ...userWithoutPassword } = users[userIndex];
-      return userWithoutPassword;
   },
 
-  changePassword: (email: string, oldPassword: string, newPassword: string): boolean => {
-      const users = getStoredUsers();
-      const userIndex = users.findIndex(u => u.email === email);
-      if (userIndex === -1) {
-          return false;
-      }
+  changePassword: async (userId: number, oldPassword: string, newPassword: string): Promise<boolean> => {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) return false;
+      
+      const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
+      if (!isMatch) return false;
 
-      if(users[userIndex].password !== oldPassword) {
-          return false; // Kata sandi lama tidak cocok
-      }
-
-      users[userIndex].password = newPassword;
-      setStoredUsers(users);
+      const salt = await bcrypt.genSalt(10);
+      const newPasswordHash = await bcrypt.hash(newPassword, salt);
+      
+      await prisma.user.update({
+          where: { id: userId },
+          data: { passwordHash: newPasswordHash }
+      });
       return true;
   },
   
-  getAllUniversities: (): string[] => {
-    const users = getStoredUsers();
-    const universities = users
-        .map(user => user.university)
-        .filter((university): university is string => !!university);
-    return [...new Set(universities)];
+  getAllUniversities: async (): Promise<string[]> => {
+    const users = await prisma.user.findMany({
+        where: { university: { not: null } },
+        select: { university: true },
+        distinct: ['university']
+    });
+    // @ts-ignore
+    return users.map(u => u.university).filter(Boolean);
   }
 };

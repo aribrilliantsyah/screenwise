@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { type QuizGroup } from "@/data/quiz-data";
+import { type QuizWithQuestions } from "@/actions/quiz";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -11,13 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Timer } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { prisma } from "@/lib/prisma";
 
 interface QuizClientProps {
-    quiz: QuizGroup;
+    quiz: QuizWithQuestions;
 }
 
 interface ActiveQuizSession {
-    quizId: string;
+    quizId: number;
     timeLeft: number;
     answers: Record<string, string>;
     startTime: number; // Store timestamp of when the quiz was started
@@ -80,6 +81,7 @@ export default function QuizClient({ quiz }: QuizClientProps) {
         localStorage.setItem(sessionKey, JSON.stringify(initialSession));
     }
     setIsInitialized(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, quiz.id, sessionKey]);
 
 
@@ -123,7 +125,7 @@ export default function QuizClient({ quiz }: QuizClientProps) {
     localStorage.setItem(sessionKey, JSON.stringify(session));
   };
   
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     if (!user || !sessionKey) {
@@ -149,20 +151,36 @@ export default function QuizClient({ quiz }: QuizClientProps) {
       passed,
       timestamp: new Date().toISOString(),
     };
-
-    // Save attempt for this specific quiz
+    
+    // Save attempt for this specific quiz to local storage for quick access on dashboard
     localStorage.setItem(`quiz_attempt_${user.email}_${quiz.id}`, JSON.stringify(attemptData));
     
-    // Add attempt to the list of all attempts for the admin
-    const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
-    const allAttempts = allAttemptsRaw ? JSON.parse(allAttemptsRaw) : [];
-    allAttempts.push({ userEmail: user.email, ...attemptData });
-    localStorage.setItem('all_quiz_attempts', JSON.stringify(allAttempts));
-    
-    // Clear active session
-    localStorage.removeItem(sessionKey);
+    try {
+      // Save attempt to database
+      const response = await fetch('/api/attempt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          quizId: quiz.id,
+          score: scorePercentage,
+          passed,
+          answers,
+        }),
+      });
 
-    router.push(`/quiz/results?quizId=${quiz.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to save attempt to database');
+      }
+
+    } catch (error) {
+        console.error("Error saving quiz attempt:", error);
+        // Optionally show a toast to the user
+    } finally {
+        // Clear active session
+        localStorage.removeItem(sessionKey);
+        router.push(`/quiz/results?quizId=${quiz.id}`);
+    }
   }, [isSubmitting, user, sessionKey, router, quiz, answers]);
 
   if (!isInitialized) {
@@ -176,7 +194,8 @@ export default function QuizClient({ quiz }: QuizClientProps) {
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   
-  const allQuestionsAnswered = Object.keys(answers).length === quiz.questions.length;
+  const answeredQuestions = Object.values(answers).filter(Boolean).length;
+  const allQuestionsAnswered = answeredQuestions === quiz.questions.length;
 
   return (
     <div className="container mx-auto max-w-3xl py-12 px-4 md:px-6">
@@ -198,7 +217,7 @@ export default function QuizClient({ quiz }: QuizClientProps) {
           {quiz.questions.map((q, index) => (
             <div key={q.id}>
               <p className="font-semibold mb-4 text-lg">
-                {index + 1}. {q.question}
+                {index + 1}. {q.questionText}
               </p>
               <RadioGroup
                 onValueChange={(value) => handleAnswerChange(String(q.id), value)}

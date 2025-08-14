@@ -4,20 +4,21 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { analyzeQuizPerformance, type AnalyzeQuizPerformanceOutput } from "@/ai/flows/analyze-quiz-performance";
-import { MOCK_SUBMISSIONS, getQuizGroups, type QuizGroup } from "@/data/quiz-data";
+import { getQuizById, type QuizWithQuestions } from "@/actions/quiz";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, BrainCircuit, Lightbulb, CheckCircle, XCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/auth-context";
+import { MOCK_SUBMISSIONS } from "@/data/quiz-data";
 
 interface Attempt {
   answers: Record<string, string>;
   score: number;
   passed: boolean;
   timestamp: string;
-  quizId: string;
+  quizId: number;
 }
 
 export default function ResultsPage() {
@@ -30,42 +31,49 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [allQuizzes, setAllQuizzes] = useState<QuizGroup[]>([]);
+  const [quiz, setQuiz] = useState<QuizWithQuestions | null>(null);
 
   const quizId = searchParams.get('quizId');
 
   useEffect(() => {
-    setAllQuizzes(getQuizGroups());
-  }, []);
+      async function loadQuiz() {
+          if (!quizId) {
+              router.push('/dashboard');
+              return;
+          }
+          const quizData = await getQuizById(Number(quizId));
+          if (quizData) {
+              setQuiz(quizData);
+          } else {
+              router.push('/dashboard');
+          }
+      }
+      loadQuiz();
+  }, [quizId, router]);
 
-  const quiz = useMemo(() => allQuizzes.find(q => q.id === quizId), [quizId, allQuizzes]);
 
   useEffect(() => {
-    if (authLoading) return; 
+    if (authLoading || !quiz) return; 
 
     if (!user) {
         router.push('/login');
         return;
     }
-    if (!quizId) {
-        router.push('/dashboard');
-        return;
-    }
-
-    const storedAttempt = localStorage.getItem(`quiz_attempt_${user.email}_${quizId}`);
-    if (storedAttempt && quiz) {
+    
+    const storedAttempt = localStorage.getItem(`quiz_attempt_${user.email}_${quiz.id}`);
+    if (storedAttempt) {
       const parsedAttempt = JSON.parse(storedAttempt);
       setAttempt(parsedAttempt);
       fetchAnalysis(parsedAttempt, user.email, quiz);
       setLoading(false);
-    } else if(quiz) { // Hanya redirect jika quiz sudah dimuat tapi attempt tidak ada
+    } else { 
       // Jika tidak ada percobaan, mungkin pengguna mencoba mengakses langsung.
       // Arahkan ke dasbor agar mereka bisa memilih kuis.
       router.push(`/dashboard`);
     }
-  }, [router, user, authLoading, quizId, quiz]);
+  }, [router, user, authLoading, quiz]);
 
-  const fetchAnalysis = async (userAttempt: Attempt, currentUserId: string, currentQuiz: any) => {
+  const fetchAnalysis = async (userAttempt: Attempt, currentUserId: string, currentQuiz: QuizWithQuestions) => {
     setLoadingAnalysis(true);
     try {
         const currentUserSubmission = {
@@ -73,7 +81,8 @@ export default function ResultsPage() {
             answers: userAttempt.answers,
             score: userAttempt.score,
         };
-        const allSubmissions = [...MOCK_SUBMISSIONS.filter(s => s.quizId === quizId), currentUserSubmission];
+        // Note: Using mock submissions for analysis as we are not storing all attempts in DB yet for this feature.
+        const allSubmissions = [...MOCK_SUBMISSIONS.filter(s => s.quizId === currentQuiz.slug), currentUserSubmission];
 
       const result = await analyzeQuizPerformance({
         quizName: currentQuiz.title,
@@ -175,7 +184,7 @@ export default function ResultsPage() {
                      return (
                          <Alert key={q.id} variant={isCorrect ? "default" : "destructive"} className="bg-background/70">
                              {isCorrect ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                             <AlertTitle>{q.question}</AlertTitle>
+                             <AlertTitle>{q.questionText}</AlertTitle>
                              <AlertDescription>
                                  Jawaban Anda: <span className="font-semibold">{userAnswer}</span>
                                  {!isCorrect && <span className="ml-2">| Jawaban benar: <span className="font-semibold">{q.correctAnswer}</span></span>}

@@ -12,8 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, BrainCircuit, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { generateQuiz, type GenerateQuizInput } from "@/ai/flows/generate-quiz-flow";
-import { getQuizGroups, saveQuizGroups, type QuizGroup } from "@/data/quiz-data";
+import { generateQuiz, type GenerateQuizOutput } from "@/ai/flows/generate-quiz-flow";
+import { createQuiz, getQuizzes } from "@/actions/quiz";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
@@ -44,22 +44,33 @@ export default function AiToolsPage() {
         setIsGenerating(true);
         setGenerationSuccess(false);
         try {
-            const generatedQuiz = await generateQuiz(values);
-            const currentQuizzes = getQuizGroups();
+            const generatedQuiz: GenerateQuizOutput = await generateQuiz(values);
+            const currentQuizzes = await getQuizzes();
 
-            // Cek apakah kuis dengan ID yang sama sudah ada
-            const quizExists = currentQuizzes.some(q => q.id === generatedQuiz.id);
+            const quizExists = currentQuizzes.some(q => q.slug === generatedQuiz.id);
             if(quizExists) {
                 toast({
                     variant: "destructive",
                     title: "Kuis Sudah Ada",
-                    description: `Kuis dengan ID "${generatedQuiz.id}" sudah ada. Coba topik lain.`,
+                    description: `Kuis dengan slug "${generatedQuiz.id}" sudah ada. Coba topik lain.`,
                 });
                 return;
             }
 
-            const updatedQuizzes = [...currentQuizzes, generatedQuiz as QuizGroup];
-            saveQuizGroups(updatedQuizzes);
+            const quizToSave = {
+                title: generatedQuiz.title,
+                description: generatedQuiz.description,
+                passingScore: generatedQuiz.passingScore,
+                timeLimitSeconds: generatedQuiz.timeLimitSeconds,
+                questions: generatedQuiz.questions.map(q => ({
+                    questionText: q.question,
+                    options: q.options,
+                    correctAnswer: q.correctAnswer
+                }))
+            };
+
+            // @ts-ignore
+            await createQuiz(quizToSave);
             
             setGenerationSuccess(true);
             toast({

@@ -11,54 +11,52 @@ datasource db {
 }
 
 model User {
-  id            String       @id @default(cuid())
-  email         String       @unique
-  name          String
+  id            Int           @id @default(autoincrement())
+  email         String        @unique
   passwordHash  String
-  address       String?
+  name          String
+  photo         String?
+  address       String
   university    String?
-  gender        String?
-  whatsapp      String?
-  phone         String?
-  photo         String? // Data URI
-  isAdmin       Boolean      @default(false)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  gender        String
+  whatsapp      String
+  phone         String
+  isAdmin       Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   quizAttempts  QuizAttempt[]
 }
 
 model Quiz {
-  id               String       @id @default(cuid())
-  slug             String       @unique
+  id               Int           @id @default(autoincrement())
+  slug             String        @unique
   title            String
   description      String
   passingScore     Int
   timeLimitSeconds Int
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
   questions        Question[]
-  attempts         QuizAttempt[]
+  quizAttempts     QuizAttempt[]
 }
 
 model Question {
-  id            String   @id @default(cuid())
-  quizId        String
+  id            Int      @id @default(autoincrement())
+  quizId        Int
   questionText  String
-  options       Json // Menyimpan opsi sebagai array JSON: ["A", "B", "C"]
+  options       String[]
   correctAnswer String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
   quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, questionText])
 }
 
 model QuizAttempt {
-  id        String   @id @default(cuid())
-  userId    String
-  quizId    String
-  score     Float
-  passed    Boolean
-  answers   Json // Menyimpan jawaban sebagai JSON: {"q1_id": "A", "q2_id": "C"}
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  quizId      Int
+  score       Float
+  passed      Boolean
+  answers     Json // Storing answers as JSON
+  submittedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
 }

@@ -10,7 +10,7 @@ import * as z from "zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, PlusCircle, Edit, Trash2, FileDown, Upload, BrainCircuit } from "lucide-react";
-import { getQuizGroups, saveQuizGroups, type QuizGroup, type Question } from "@/data/quiz-data";
+import { createQuiz, deleteQuiz, getEnrichedAttempts, getQuizzes, updateQuiz, type QuizWithQuestions, type EnrichedAttempt } from "@/actions/quiz";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -21,20 +21,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 import Link from "next/link";
-import { localAuth, type User } from "@/lib/auth";
-
-interface Attempt {
-  userEmail: string;
-  quizId: string;
-  score: number;
-  passed: boolean;
-  timestamp: string;
-}
-
-interface EnrichedAttempt extends Attempt {
-    userName: string;
-    userPhone: string;
-}
 
 type FilterStatus = 'all' | 'passed' | 'failed';
 
@@ -44,14 +30,14 @@ const ITEMS_PER_PAGE = 5;
 const slugify = (text: string) => text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
 const questionSchema = z.object({
-  question: z.string().min(1, "Pertanyaan tidak boleh kosong"),
+  questionText: z.string().min(1, "Pertanyaan tidak boleh kosong"),
   options: z.array(z.string().min(1, "Opsi tidak boleh kosong")).min(2, "Minimal 2 opsi"),
   correctAnswer: z.string({ required_error: "Anda harus memilih jawaban yang benar." }).min(1, "Anda harus memilih jawaban yang benar."),
   id: z.any().optional(), // ID bisa string atau number
 });
 
 const quizFormSchema = z.object({
-  id: z.string().optional(),
+  id: z.number().optional(),
   title: z.string().min(1, "Judul kuis harus diisi"),
   description: z.string().min(1, "Deskripsi harus diisi"),
   passingScore: z.coerce.number().min(0).max(100),
@@ -67,17 +53,18 @@ export default function AdminPage() {
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [quizzes, setQuizzes] = useState<QuizGroup[]>([]);
+    const [quizzes, setQuizzes] = useState<QuizWithQuestions[]>([]);
     const [attempts, setAttempts] = useState<EnrichedAttempt[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLoadingData, setIsLoadingData] = useState(true);
     
     // Dialog States
     const [isAddOrEditDialogOpen, setIsAddOrEditDialogOpen] = useState(false);
-    const [editingQuiz, setEditingQuiz] = useState<QuizGroup | null>(null);
+    const [editingQuiz, setEditingQuiz] = useState<QuizWithQuestions | null>(null);
 
     // State untuk import
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-    const [importedQuiz, setImportedQuiz] = useState<Omit<QuizFormData, 'questions'> & { questions: Omit<Question, 'id'>[] } | null>(null);
+    const [importedQuiz, setImportedQuiz] = useState<Omit<QuizFormData, 'id'|'questions'> & { questions: Omit<z.infer<typeof questionSchema>, 'id'>[] } | null>(null);
 
     // State untuk paginasi dan filter
     const [quizPage, setQuizPage] = useState(1);
@@ -91,27 +78,22 @@ export default function AdminPage() {
         }
     }, [isAdmin, authLoading, router]);
 
+    const loadData = async () => {
+        setIsLoadingData(true);
+        const [quizData, attemptData] = await Promise.all([
+            getQuizzes(),
+            getEnrichedAttempts(),
+        ]);
+        setQuizzes(quizData);
+        setAttempts(attemptData);
+        setIsLoadingData(false);
+    };
+
     useEffect(() => {
-        setQuizzes(getQuizGroups());
-        const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
-        const allUsersRaw = localStorage.getItem('screenwise_users');
-
-        if (allAttemptsRaw) {
-            const parsedAttempts: Attempt[] = JSON.parse(allAttemptsRaw);
-            const parsedUsers: (User & {password: string})[] = allUsersRaw ? JSON.parse(allUsersRaw) : [];
-            const usersMap = new Map(parsedUsers.map(u => [u.email, u]));
-
-            const enrichedAttempts: EnrichedAttempt[] = parsedAttempts.map(attempt => {
-                const user = usersMap.get(attempt.userEmail);
-                return {
-                    ...attempt,
-                    userName: user?.name || 'N/A',
-                    userPhone: user?.phone || 'N/A'
-                };
-            });
-            setAttempts(enrichedAttempts);
+        if (isAdmin) {
+            loadData();
         }
-    }, []);
+    }, [isAdmin]);
 
     const form = useForm<QuizFormData>({
         resolver: zodResolver(quizFormSchema),
@@ -120,7 +102,7 @@ export default function AdminPage() {
             description: "",
             passingScore: 70,
             timeLimitSeconds: 300,
-            questions: [{ question: "", options: ["", ""], correctAnswer: undefined, id: 1 }]
+            questions: [{ questionText: "", options: ["", ""], correctAnswer: undefined, id: 1 }]
         },
     });
 
@@ -140,17 +122,17 @@ export default function AdminPage() {
             description: "",
             passingScore: 70,
             timeLimitSeconds: 300,
-            questions: [{ question: "", options: ["", ""], correctAnswer: undefined, id: 1 }]
+            questions: [{ questionText: "", options: ["", ""], correctAnswer: undefined, id: 1 }]
         });
         setIsAddOrEditDialogOpen(true);
     };
 
-    const openEditDialog = (quiz: QuizGroup) => {
+    const openEditDialog = (quiz: QuizWithQuestions) => {
         setEditingQuiz(quiz);
         form.reset({
             ...quiz,
             questions: quiz.questions.map(q => ({
-                question: q.question,
+                questionText: q.questionText,
                 options: q.options,
                 correctAnswer: q.correctAnswer,
                 id: q.id
@@ -159,39 +141,28 @@ export default function AdminPage() {
         setIsAddOrEditDialogOpen(true);
     };
 
-    const onSubmit = (values: QuizFormData) => {
+    const onSubmit = async (values: QuizFormData) => {
         setIsSubmitting(true);
         try {
-            const newSlug = slugify(values.title);
-
             if (editingQuiz) { // Logic for editing
-                const updatedQuiz: QuizGroup = {
-                    ...editingQuiz,
-                    ...values,
-                     // Re-slugify the id based on the new title to keep it consistent
-                    id: `${newSlug}-${editingQuiz.id.split('-').pop()}`, // Keep original timestamp for stability
-                    questions: values.questions.map((q, index) => ({ 
-                        ...q, 
-                        id: q.id || index + 1
-                    })),
-                };
-                const updatedQuizzes = quizzes.map(q => q.id === editingQuiz.id ? updatedQuiz : q);
-                saveQuizGroups(updatedQuizzes);
-                setQuizzes(updatedQuizzes);
-                toast({ title: "Sukses!", description: "Kuis berhasil diperbarui." });
-
+                // @ts-ignore
+                const result = await updateQuiz(editingQuiz.id, values);
+                if (result) {
+                    toast({ title: "Sukses!", description: "Kuis berhasil diperbarui." });
+                } else {
+                     throw new Error("Gagal memperbarui kuis");
+                }
             } else { // Logic for adding new quiz
-                const newQuiz: QuizGroup = {
-                    id: `${newSlug}-${Date.now()}`, // Create a unique slug
-                    ...values,
-                    questions: values.questions.map((q, index) => ({ ...q, id: index + 1 })),
-                };
-                const updatedQuizzes = [...quizzes, newQuiz];
-                saveQuizGroups(updatedQuizzes);
-                setQuizzes(updatedQuizzes);
-                toast({ title: "Sukses!", description: "Kuis baru berhasil ditambahkan." });
+                // @ts-ignore
+                const result = await createQuiz(values);
+                 if (result) {
+                    toast({ title: "Sukses!", description: "Kuis baru berhasil ditambahkan." });
+                } else {
+                     throw new Error("Gagal membuat kuis");
+                }
             }
             
+            await loadData(); // Refresh data
             form.reset();
             setIsAddOrEditDialogOpen(false);
             setEditingQuiz(null);
@@ -206,27 +177,30 @@ export default function AdminPage() {
             toast({
                 variant: "destructive",
                 title: "Gagal",
-                description: "Terjadi kesalahan saat menyimpan kuis.",
+                description: (error as Error).message || "Terjadi kesalahan saat menyimpan kuis.",
             });
         } finally {
             setIsSubmitting(false);
         }
     };
     
-    const handleDeleteQuiz = (quizId: string) => {
+    const handleDeleteQuiz = async (quizId: number) => {
         try {
-            const updatedQuizzes = quizzes.filter(q => q.id !== quizId);
-            saveQuizGroups(updatedQuizzes);
-            setQuizzes(updatedQuizzes);
-            toast({
-                title: "Kuis Dihapus",
-                description: "Kuis telah berhasil dihapus."
-            });
+            const success = await deleteQuiz(quizId);
+            if (success) {
+                toast({
+                    title: "Kuis Dihapus",
+                    description: "Kuis telah berhasil dihapus."
+                });
+                await loadData(); // Refresh data
+            } else {
+                throw new Error("Gagal menghapus kuis dari server.");
+            }
         } catch(error) {
              toast({
                 variant: "destructive",
                 title: "Gagal",
-                description: "Terjadi kesalahan saat menghapus kuis.",
+                description: (error as Error).message || "Terjadi kesalahan saat menghapus kuis.",
             });
         }
     };
@@ -239,11 +213,11 @@ export default function AdminPage() {
             ["Skor Lulus (%)", 70],
             ["Batas Waktu (detik)", 300],
             [], // Baris kosong sebagai pemisah
-            ['Pertanyaan', 'Opsi 1', 'Opsi 2', 'Opsi 3', 'Opsi 4', 'Opsi 5']
+            ['Pertanyaan', 'Opsi 1', 'Opsi 2', 'Opsi 3', 'Opsi 4', 'Opsi 5', 'Jawaban Benar']
         ];
         const exampleData = [
-            ['Apa ibu kota Indonesia?', '(benar)Jakarta', 'Surabaya', 'Bandung'],
-            ['Planet apa yang dikenal sebagai Planet Merah?', 'Bumi', '(benar)Mars', 'Jupiter', 'Venus'],
+            ['Apa ibu kota Indonesia?', 'Jakarta', 'Surabaya', 'Bandung', '', '', 'Jakarta'],
+            ['Planet apa yang dikenal sebagai Planet Merah?', 'Bumi', 'Mars', 'Jupiter', 'Venus', '', 'Mars'],
         ];
 
         const worksheet = XLSX.utils.aoa_to_sheet([...header, ...exampleData]);
@@ -274,33 +248,19 @@ export default function AdminPage() {
 
                 const questionRows = json.slice(5);
 
-                const parsedQuestions: Omit<Question, 'id'>[] = questionRows.map((row, rowIndex) => {
-                    const question = row[0];
-                    if (!question) return null;
+                const parsedQuestions: Omit<z.infer<typeof questionSchema>, 'id'>[] = questionRows.map((row, rowIndex) => {
+                    const questionText = row[0];
+                    if (!questionText) return null;
 
-                    const options: string[] = [];
-                    let correctAnswer = '';
-                    
-                    for (let i = 1; i <= 5; i++) {
-                        let option = row[i];
-                        if (option) {
-                           option = String(option);
-                           if (option.startsWith('(benar)')) {
-                               const cleanOption = option.replace('(benar)', '').trim();
-                               if(correctAnswer) throw new Error(`Pertanyaan di baris Excel ${rowIndex + 7} memiliki lebih dari satu jawaban benar.`);
-                               correctAnswer = cleanOption;
-                               options.push(cleanOption);
-                           } else {
-                               options.push(option);
-                           }
-                        }
-                    }
+                    const options: string[] = row.slice(1, 6).filter(opt => opt != null && opt !== '');
+                    const correctAnswer = row[6];
 
-                    if (!correctAnswer) throw new Error(`Tidak ada jawaban benar yang ditandai dengan '(benar)' untuk pertanyaan "${question}".`);
-                    if (options.length < 2) throw new Error(`Pertanyaan "${question}" harus memiliki minimal 2 opsi.`);
+                    if (!correctAnswer) throw new Error(`Tidak ada jawaban benar di kolom G untuk pertanyaan "${questionText}".`);
+                    if (!options.includes(correctAnswer)) throw new Error(`Jawaban benar "${correctAnswer}" untuk pertanyaan "${questionText}" harus ada di salah satu kolom opsi (B-F).`);
+                    if (options.length < 2) throw new Error(`Pertanyaan "${questionText}" harus memiliki minimal 2 opsi.`);
 
-                    return { question, options, correctAnswer };
-                }).filter((q): q is Omit<Question, 'id'> => q !== null);
+                    return { questionText, options, correctAnswer };
+                }).filter((q): q is Omit<z.infer<typeof questionSchema>, 'id'> => q !== null);
 
                 if (parsedQuestions.length === 0) {
                    throw new Error("File Excel tidak mengandung pertanyaan atau formatnya salah.");
@@ -318,7 +278,7 @@ export default function AdminPage() {
                 importForm.reset({
                   ...tempQuizData,
                   questions: tempQuizData.questions.map(q => ({
-                    question: q.question,
+                    questionText: q.questionText,
                     options: q.options,
                     correctAnswer: q.correctAnswer
                   }))
@@ -348,7 +308,7 @@ export default function AdminPage() {
     }, [attempts, filterStatus]);
 
 
-    const handleExportResults = () => {
+    const handleExportResults = async () => {
         try {
             if (filteredAttempts.length === 0) {
                 toast({
@@ -358,26 +318,15 @@ export default function AdminPage() {
                 return;
             }
 
-            const allQuizzes = getQuizGroups();
-            const quizTitleMap = new Map(allQuizzes.map(q => [q.id, q.title]));
-            const allUsersRaw = localStorage.getItem('screenwise_users');
-            const allUsers: (User & {password: string})[] = allUsersRaw ? JSON.parse(allUsersRaw) : [];
-            const userDetailsMap = new Map(allUsers.map(u => [u.email, u]));
-
             const dataToExport = filteredAttempts.map(attempt => {
-                const userDetails = userDetailsMap.get(attempt.userEmail);
                 return {
-                    'Email Peserta': attempt.userEmail,
-                    'Nama Lengkap': userDetails?.name || 'N/A',
-                    'Alamat': userDetails?.address || 'N/A',
-                    'Universitas': userDetails?.university || 'N/A',
-                    'Jenis Kelamin': userDetails?.gender || 'N/A',
-                    'No. WhatsApp': userDetails?.whatsapp || 'N/A',
-                    'No. HP': userDetails?.phone || 'N/A',
-                    'Nama Kuis': quizTitleMap.get(attempt.quizId) || attempt.quizId,
+                    'Email Peserta': attempt.user.email,
+                    'Nama Lengkap': attempt.user.name || 'N/A',
+                    'No. HP': attempt.user.phone || 'N/A',
+                    'Nama Kuis': attempt.quiz.title,
                     'Skor (%)': attempt.score.toFixed(0),
                     'Status': attempt.passed ? 'Lulus' : 'Gagal',
-                    'Tanggal Pengerjaan': new Date(attempt.timestamp).toLocaleString('id-ID'),
+                    'Tanggal Pengerjaan': new Date(attempt.submittedAt).toLocaleString('id-ID'),
                 };
             });
             
@@ -421,7 +370,7 @@ export default function AdminPage() {
         const newOptions = [...question.options];
         newOptions.splice(optionIndex, 1);
         
-        const currentCorrectAnswer = form.getValues(`questions.${questionIndex}.correctAnswer`);
+        const currentCorrectAnswer = form.getValues(`questions.${index}.correctAnswer`);
         const deletedOptionValue = question.options[optionIndex];
 
         update(questionIndex, {
@@ -436,7 +385,7 @@ export default function AdminPage() {
         setAttemptsPage(1); // Reset ke halaman pertama saat filter berubah
     };
 
-    if (authLoading || !isAdmin) {
+    if (authLoading || isLoadingData) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -474,8 +423,8 @@ export default function AdminPage() {
                                </TableRow>
                            </TableHeader>
                            <TableBody>
-                               {displayedQuizzes.map((group, index) => (
-                                   <TableRow key={`${group.id}-${index}`}>
+                               {displayedQuizzes.map((group) => (
+                                   <TableRow key={group.id}>
                                        <TableCell className="font-medium">{group.title}</TableCell>
                                        <TableCell>{group.questions.length}</TableCell>
                                        <TableCell>{group.passingScore}%</TableCell>
@@ -489,7 +438,7 @@ export default function AdminPage() {
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Tindakan ini tidak dapat diurungkan. Ini akan menghapus kuis secara permanen.
+                                                            Tindakan ini tidak dapat diurungkan. Ini akan menghapus kuis secara permanen beserta semua data percobaan terkait.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
@@ -560,20 +509,20 @@ export default function AdminPage() {
                             </TableHeader>
                             <TableBody>
                                 {displayedAttempts.length > 0 ? displayedAttempts.map((attempt) => (
-                                    <TableRow key={`${attempt.userEmail}-${attempt.quizId}-${attempt.timestamp}`}>
+                                    <TableRow key={attempt.id}>
                                         <TableCell>
-                                            <div className="font-medium">{attempt.userName}</div>
-                                            <div className="text-sm text-muted-foreground">{attempt.userEmail}</div>
+                                            <div className="font-medium">{attempt.user.name}</div>
+                                            <div className="text-sm text-muted-foreground">{attempt.user.email}</div>
                                         </TableCell>
-                                        <TableCell>{attempt.userPhone}</TableCell>
-                                        <TableCell>{quizzes.find(qg => qg.id === attempt.quizId)?.title || 'N/A'}</TableCell>
+                                        <TableCell>{attempt.user.phone}</TableCell>
+                                        <TableCell>{attempt.quiz.title}</TableCell>
                                         <TableCell>{attempt.score.toFixed(0)}%</TableCell>
                                         <TableCell>
                                             <span className={attempt.passed ? "text-green-600 font-bold" : "text-destructive font-bold"}>
                                               {attempt.passed ? 'Lulus' : 'Gagal'}
                                             </span>
                                         </TableCell>
-                                         <TableCell>{new Date(attempt.timestamp).toLocaleString('id-ID')}</TableCell>
+                                         <TableCell>{new Date(attempt.submittedAt).toLocaleString('id-ID')}</TableCell>
                                     </TableRow>
                                 )) : (
                                     <TableRow>
@@ -641,7 +590,7 @@ export default function AdminPage() {
                                            <Trash2 className="h-4 w-4" />
                                            <span className="sr-only">Hapus Pertanyaan</span>
                                         </Button>
-                                        <FormField name={`questions.${index}.question`} control={form.control} render={({ field }) => (
+                                        <FormField name={`questions.${index}.questionText`} control={form.control} render={({ field }) => (
                                             <FormItem><FormLabel>Pertanyaan {index + 1}</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
                                         
@@ -679,7 +628,7 @@ export default function AdminPage() {
                                          <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>Tambah Opsi</Button>
                                     </div>
                                 ))}
-                                <Button type="button" variant="outline" onClick={() => append({ question: "", options: ["", ""], correctAnswer: undefined, id: Date.now() })}>Tambah Pertanyaan</Button>
+                                <Button type="button" variant="outline" onClick={() => append({ questionText: "", options: ["", ""], correctAnswer: undefined, id: Date.now() })}>Tambah Pertanyaan</Button>
                             </div>
                             
                             <DialogFooter>
@@ -726,7 +675,7 @@ export default function AdminPage() {
                                    <CardContent className="space-y-4 max-h-60 overflow-y-auto">
                                        {importedQuiz.questions.map((q, index) => (
                                            <div key={index} className="p-3 border rounded-md">
-                                               <p className="font-semibold">{index + 1}. {q.question}</p>
+                                               <p className="font-semibold">{index + 1}. {q.questionText}</p>
                                                <ul className="list-disc pl-5 mt-2 text-sm">
                                                    {q.options.map((opt, optIndex) => (
                                                        <li key={optIndex} className={opt === q.correctAnswer ? 'text-green-600 font-bold' : ''}>
@@ -754,5 +703,3 @@ export default function AdminPage() {
         </div>
     )
 }
-
-    
