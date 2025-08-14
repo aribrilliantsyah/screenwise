@@ -66,7 +66,7 @@ export function AuthForm({ variant }: AuthFormProps) {
   const [universityOptions, setUniversityOptions] = useState<{ value: string; label: string }[]>([]);
 
   const currentValidationSchema = variant === 'signup' 
-      ? (step === 1 ? step1Schema : step2Schema) 
+      ? (step === 1 ? step1Schema : signupSchema) // Validasi semua field saat di step 2
       : loginSchema;
 
   const form = useForm({
@@ -124,15 +124,14 @@ export function AuthForm({ variant }: AuthFormProps) {
     setLoading(true);
     try {
       if (variant === "signup") {
-        const finalData = { ...form.getValues(), ...values } as SignupData;
-        const result = await signup(finalData);
+        // Karena resolver di set ke signupSchema, values akan berisi semua field
+        const result = await signup(values as SignupData);
         if (result?.error) throw new Error(result.error);
         
         toast({
             title: "Pendaftaran Berhasil",
             description: "Anda akan diarahkan ke dasbor.",
         });
-        // No redirect here, layout effect will handle it
       } else {
         const { email, password } = values as z.infer<typeof loginSchema>;
         const result = await login(email, password);
@@ -142,7 +141,6 @@ export function AuthForm({ variant }: AuthFormProps) {
             title: "Login Berhasil",
             description: "Anda akan diarahkan.",
         });
-        // No redirect here, layout effect will handle it
       }
     } catch (error: any) {
       toast({

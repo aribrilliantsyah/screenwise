@@ -25,11 +25,19 @@ export async function signup(data: SignupData): Promise<{ error?: string }> {
 
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(data.password, salt);
-
+        
+        // Pastikan semua data dari form signup ikut disimpan
         const newUser = await User.create({
-            ...data,
+            email: data.email,
             passwordHash,
-            isAdmin: false, // Explicitly set isAdmin to false for signup
+            name: data.name,
+            address: data.address,
+            gender: data.gender,
+            whatsapp: data.whatsapp,
+            phone: data.phone,
+            photo: data.photo,
+            university: data.university,
+            isAdmin: false, 
         });
         
         const { passwordHash: _, ...userWithoutPassword } = newUser.get({ plain: true });
