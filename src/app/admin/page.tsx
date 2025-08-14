@@ -436,8 +436,8 @@ export default function AdminPage() {
                                </TableRow>
                            </TableHeader>
                            <TableBody>
-                               {displayedQuizzes.map((group) => (
-                                   <TableRow key={group.id}>
+                               {displayedQuizzes.map((group, index) => (
+                                   <TableRow key={`${group.id}-${index}`}>
                                        <TableCell className="font-medium">{group.title}</TableCell>
                                        <TableCell>{group.questions.length}</TableCell>
                                        <TableCell>{group.passingScore}%</TableCell>
@@ -709,3 +709,5 @@ export default function AdminPage() {
         </div>
     )
 }
+
+    
