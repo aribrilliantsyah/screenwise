@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -27,7 +28,7 @@ export type AnalyzeQuizPerformanceInput = z.infer<typeof AnalyzeQuizPerformanceI
 
 const AnalyzeQuizPerformanceOutputSchema = z.object({
   keyInsights: z.string().describe('Wawasan kunci tentang pola jawaban yang berkorelasi dengan kinerja tinggi.'),
-  suggestedImprovements: z.string().describe('Saran perbaikan untuk kuis atau kurikulum berdasarkan analisis.'),
+  suggestedImprovements: z.string().describe('Saran perbaikan untuk peserta tes berdasarkan analisis pola jawaban.'),
 });
 
 export type AnalyzeQuizPerformanceOutput = z.infer<typeof AnalyzeQuizPerformanceOutputSchema>;
@@ -40,13 +41,13 @@ const analyzeQuizPerformancePrompt = ai.definePrompt({
   name: 'analyzeQuizPerformancePrompt',
   input: {schema: AnalyzeQuizPerformanceInputSchema},
   output: {schema: AnalyzeQuizPerformanceOutputSchema},
-  prompt: `Anda adalah asisten AI yang berspesialisasi dalam menganalisis data kinerja kuis.
+  prompt: `Anda adalah asisten AI yang berspesialisasi dalam menganalisis data kinerja kuis untuk memberikan umpan balik kepada peserta.
 
-  Anda diberikan data dari kuis bernama "{{quizName}}". Setiap pengiriman mencakup ID pengguna, jawaban mereka untuk pertanyaan kuis, dan skor akhir mereka.
+  Anda diberikan data dari kuis bernama "{{quizName}}". Tugas Anda adalah menganalisis jawaban dari semua peserta untuk menemukan pola. Fokus utama Anda adalah pada bagaimana peserta berkinerja tinggi (skor di atas {{highPerformanceThreshold}}) menjawab pertanyaan dibandingkan dengan yang lain.
 
-  Tugas Anda adalah menganalisis data ini untuk mengidentifikasi pola apa pun dalam jawaban yang berkorelasi dengan kinerja tinggi. Pengguna dianggap berkinerja tinggi jika skor mereka di atas {{highPerformanceThreshold}}.
-
-  Berdasarkan analisis Anda, berikan wawasan kunci tentang pola jawaban ini dan sarankan perbaikan untuk kuis atau kurikulum.
+  Berdasarkan analisis Anda, berikan:
+  1.  **Wawasan Kunci**: Jelaskan pola atau tren menarik dari jawaban yang Anda temukan. Misalnya, "Sebagian besar peserta berkinerja tinggi menjawab 'X' pada pertanyaan Y" atau "Topik Z tampaknya menjadi tantangan bagi banyak peserta."
+  2.  **Saran Perbaikan untuk Peserta**: Berikan saran yang dapat ditindaklanjuti untuk peserta tes. Fokus pada area pengetahuan atau jenis pertanyaan di mana mereka dapat meningkatkan pemahaman mereka. JANGAN menyarankan perubahan pada soal kuis. Contoh: "Untuk meningkatkan skor Anda, fokuslah pada pemahaman konsep A, karena ini adalah area di mana peserta berkinerja tinggi unggul." atau "Perhatikan pertanyaan tentang topik B, karena ini adalah pembeda utama antara skor tinggi dan rendah."
 
   Pengiriman:
   {{#each submissions}}
@@ -54,11 +55,6 @@ const analyzeQuizPerformancePrompt = ai.definePrompt({
     Jawaban: {{this.answers}}
     Skor: {{this.score}}
   {{/each}}
-  
-  Berikut adalah beberapa tips untuk mengekstrak sinyal terbaik:
-  * Pastikan untuk membersihkan pengiriman yang masuk untuk menghapus informasi yang dapat diidentifikasi secara pribadi.
-  * Pertimbangkan untuk mengelompokkan pertanyaan berdasarkan konsep untuk melihat apakah peserta berkinerja tinggi secara konsisten berhasil (atau gagal) pada topik tertentu.
-  * Jika semua pengiriman sama, coba atur "highPerformanceThreshold" ke nilai di atas skor tersebut untuk mendorong LLM memberikan sinyal terbaik.
   `,
   config: {
     safetySettings: [
