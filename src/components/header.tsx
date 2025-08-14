@@ -30,7 +30,7 @@ export function Header() {
     if (names.length > 1) {
         return names[0][0] + names[names.length - 1][0];
     }
-    return name[0];
+    return name.substring(0, 2).toUpperCase();
   }
 
   return (
@@ -54,9 +54,9 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                         <Avatar className="h-10 w-10">
-                            {/* Menghapus AvatarImage dan menggunakan AvatarFallback dengan ikon */}
+                            <AvatarImage src={user.photo || undefined} alt={user.name}/>
                             <AvatarFallback>
-                                <UserIcon className="h-6 w-6"/>
+                                {getInitials(user.name)}
                             </AvatarFallback>
                         </Avatar>
                     </Button>

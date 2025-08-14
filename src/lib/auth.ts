@@ -10,6 +10,7 @@ export interface User {
   gender: "Laki-laki" | "Perempuan";
   whatsapp: string;
   phone: string;
+  photo?: string; // Data URI for the photo
 }
 
 export type UpdateUserData = Omit<User, 'email' | 'gender'>;
@@ -128,5 +129,3 @@ export const localAuth = {
       return true;
   }
 };
-
-    

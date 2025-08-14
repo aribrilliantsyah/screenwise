@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -17,9 +17,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, User as UserIcon, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 // Skema untuk langkah 1: Data Diri
 const step1Schema = z.object({
@@ -29,6 +30,7 @@ const step1Schema = z.object({
   gender: z.enum(["Laki-laki", "Perempuan"], { required_error: "Jenis kelamin harus dipilih." }),
   whatsapp: z.string().min(10, { message: "Nomor WhatsApp tidak valid." }),
   phone: z.string().min(10, { message: "Nomor HP tidak valid." }),
+  photo: z.string().optional(), // Data URI untuk foto
 });
 
 // Skema untuk langkah 2: Email & Password
@@ -59,6 +61,8 @@ export function AuthForm({ variant }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { login, signup } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   
   const currentValidationSchema = variant === 'signup' 
       ? (step === 1 ? step1Schema : step2Schema) 
@@ -66,6 +70,7 @@ export function AuthForm({ variant }: AuthFormProps) {
 
   const form = useForm({
     resolver: zodResolver(currentValidationSchema),
+    mode: "onChange",
     defaultValues: {
       email: "",
       password: "",
@@ -76,15 +81,30 @@ export function AuthForm({ variant }: AuthFormProps) {
       gender: undefined,
       whatsapp: "",
       phone: "",
+      photo: "",
     },
   });
 
   const handleNext = async () => {
-    const isValid = await form.trigger(["name", "address", "company", "gender", "whatsapp", "phone"]);
+    const isValid = await form.trigger(["name", "address", "company", "gender", "whatsapp", "phone", "photo"]);
     if(isValid) {
         setStep(2);
     }
   };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUri = reader.result as string;
+        setPhotoPreview(dataUri);
+        form.setValue("photo", dataUri);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
@@ -168,6 +188,40 @@ export function AuthForm({ variant }: AuthFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         {step === 1 && (
             <>
+                <FormField
+                    control={form.control}
+                    name="photo"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col items-center">
+                        <FormLabel>Foto Profil</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Avatar className="h-24 w-24 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                                <AvatarImage src={photoPreview || undefined} alt="Pratinjau Foto Profil"/>
+                                <AvatarFallback>
+                                    <UserIcon className="h-12 w-12"/>
+                                </AvatarFallback>
+                            </Avatar>
+                            <div 
+                              className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-1 cursor-pointer hover:bg-primary/90"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              <Camera className="h-4 w-4"/>
+                            </div>
+                            <Input 
+                              type="file" 
+                              className="hidden" 
+                              ref={fileInputRef} 
+                              onChange={handlePhotoChange} 
+                              accept="image/png, image/jpeg, image/jpg" 
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                />
+
                 <FormField
                     control={form.control}
                     name="name"

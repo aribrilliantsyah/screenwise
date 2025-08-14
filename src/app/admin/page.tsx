@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, PlusCircle, Edit, Trash2, FileDown, Upload } from "lucide-react";
+import { Loader2, PlusCircle, Edit, Trash2, FileDown, Upload, BrainCircuit } from "lucide-react";
 import { getQuizGroups, saveQuizGroups, type QuizGroup, type Question } from "@/data/quiz-data";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
+import Link from "next/link";
 
 interface Attempt {
   userEmail: string;
@@ -358,6 +359,9 @@ export default function AdminPage() {
                             <CardDescription>Tambah, edit, atau hapus grup soal kuis.</CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
+                           <Button asChild variant="outline">
+                              <Link href="/admin/ai-tools"><BrainCircuit /> Alat AI & Ekspor</Link>
+                           </Button>
                             <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".xlsx, .xls" className="hidden" />
                              <Button variant="outline" onClick={handleDownloadTemplate}><FileDown /> Unduh Template</Button>
                              <Button onClick={() => fileInputRef.current?.click()}><Upload /> Impor Kuis</Button>
@@ -634,5 +638,3 @@ export default function AdminPage() {
         </div>
     )
 }
-
-    
