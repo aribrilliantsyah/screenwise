@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -67,9 +67,17 @@ export function AuthForm({ variant }: AuthFormProps) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [universityOptions, setUniversityOptions] = useState<{ value: string; label: string }[]>([]);
 
-  const currentValidationSchema = variant === 'signup' 
-      ? (step === 1 ? step1Schema : signupSchema)
-      : loginSchema;
+  const currentValidationSchema = useMemo(() => {
+    if (variant === 'login') {
+      return loginSchema;
+    }
+    if (variant === 'signup' && step === 1) {
+      return step1Schema;
+    }
+    // step === 2
+    return signupSchema;
+  }, [variant, step]);
+
 
   const form = useForm({
     resolver: zodResolver(currentValidationSchema),
@@ -409,5 +417,3 @@ export function AuthForm({ variant }: AuthFormProps) {
     </Form>
   );
 }
-
-    
