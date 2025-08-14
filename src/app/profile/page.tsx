@@ -20,8 +20,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { localAuth } from "@/lib/auth";
 import { Combobox } from "@/components/combobox";
+import { getAllUniversities, updateUser, changePassword } from "@/actions/user";
+import type { User } from '@prisma/client';
 
 // Skema untuk pembaruan profil
 const profileSchema = z.object({
@@ -44,7 +45,7 @@ const passwordSchema = z.object({
 
 
 export default function ProfilePage() {
-    const { user, loading: authLoading, setUser } = useAuth();
+    const { user, loading: authLoading, setSession } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [profileLoading, setProfileLoading] = useState(false);
@@ -73,7 +74,7 @@ export default function ProfilePage() {
 
     useEffect(() => {
       async function fetchUniversities() {
-        const storedUniversities = await localAuth.getAllUniversities();
+        const storedUniversities = await getAllUniversities();
         setUniversityOptions(storedUniversities.map(u => ({ value: u, label: u })));
       }
       fetchUniversities();
@@ -108,15 +109,15 @@ export default function ProfilePage() {
     const onProfileSubmit = async (values: z.infer<typeof profileSchema>) => {
         setProfileLoading(true);
         try {
-            const updatedUser = await localAuth.updateUser(user.id, values);
+            const { user: updatedUser, error } = await updateUser(user.id, values as Partial<User>);
             if (updatedUser) {
-                setUser(updatedUser); // Update state di context
+                setSession(updatedUser); // Update state di context
                 toast({
                     title: "Profil Diperbarui",
                     description: "Informasi profil Anda berhasil diperbarui.",
                 });
             } else {
-                 throw new Error("Gagal memperbarui profil.");
+                 throw new Error(error || "Gagal memperbarui profil.");
             }
         } catch (error: any) {
             toast({
@@ -132,7 +133,7 @@ export default function ProfilePage() {
     const onPasswordSubmit = async (values: z.infer<typeof passwordSchema>) => {
         setPasswordLoading(true);
         try {
-            const success = await localAuth.changePassword(user.id, values.oldPassword, values.newPassword);
+            const { success, error } = await changePassword({userId: user.id, oldPassword: values.oldPassword, newPassword: values.newPassword});
             if (success) {
                 toast({
                     title: "Kata Sandi Diperbarui",
@@ -140,7 +141,7 @@ export default function ProfilePage() {
                 });
                 passwordForm.reset();
             } else {
-                throw new Error("Kata sandi lama Anda salah.");
+                throw new Error(error || "Gagal mengubah kata sandi.");
             }
         } catch (error: any) {
             toast({

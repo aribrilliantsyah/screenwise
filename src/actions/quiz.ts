@@ -2,7 +2,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import type { Quiz, Question } from '@prisma/client';
+import type { Quiz, Question, QuizAttempt, User } from '@prisma/client';
 
 // Re-exporting Quiz type with questions for client-side usage
 export type QuizWithQuestions = Quiz & { questions: Question[] };
@@ -27,6 +27,17 @@ export async function getQuizzes(): Promise<QuizWithQuestions[]> {
     return [];
   }
 }
+
+export async function getAllUsers(): Promise<User[]> {
+    try {
+        const users = await prisma.user.findMany();
+        return users;
+    } catch(e) {
+        console.error("Failed to fetch users:", e);
+        return [];
+    }
+}
+
 
 export async function getQuizById(id: number): Promise<QuizWithQuestions | null> {
     try {
@@ -150,12 +161,32 @@ export async function deleteQuiz(quizId: number): Promise<boolean> {
     }
 }
 
+export async function saveAttempt(attemptData: Omit<QuizAttempt, 'id' | 'submittedAt'>): Promise<QuizAttempt | null> {
+    try {
+        const newAttempt = await prisma.quizAttempt.create({
+            data: {
+                ...attemptData,
+                answers: attemptData.answers as any, // Prisma expects JsonValue
+            }
+        });
+        return newAttempt;
+    } catch (error) {
+        console.error("Failed to save attempt:", error);
+        return null;
+    }
+}
+
+
 // --- User and Attempts Management ---
 export interface EnrichedAttempt {
     user: {
         name: string | null;
         email: string;
         phone: string | null;
+        address: string | null;
+        university: string | null;
+        gender: string | null;
+        whatsapp: string | null;
     };
     quiz: {
         title: string;
@@ -176,6 +207,10 @@ export async function getEnrichedAttempts(): Promise<EnrichedAttempt[]> {
                         name: true,
                         email: true,
                         phone: true,
+                        address: true,
+                        university: true,
+                        gender: true,
+                        whatsapp: true,
                     }
                 },
                 quiz: {

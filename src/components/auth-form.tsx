@@ -18,11 +18,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, User as UserIcon, Camera } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth, type SignupData } from "@/contexts/auth-context";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Combobox } from "./combobox";
-import { localAuth, type SignupData } from "@/lib/auth";
+import { getAllUniversities } from "@/actions/user";
+
 
 // Skema untuk langkah 1: Data Diri
 const step1Schema = z.object({
@@ -62,7 +63,7 @@ export function AuthForm({ variant }: AuthFormProps) {
   const [step, setStep] = useState(1);
   const router = useRouter();
   const { toast } = useToast();
-  const { login, signup } = useAuth();
+  const { login, signup, getSession } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [universityOptions, setUniversityOptions] = useState<{ value: string; label: string }[]>([]);
@@ -91,7 +92,7 @@ export function AuthForm({ variant }: AuthFormProps) {
   useEffect(() => {
     async function fetchUniversities() {
       if (variant === 'signup') {
-          const storedUniversities = await localAuth.getAllUniversities();
+          const storedUniversities = await getAllUniversities();
           setUniversityOptions(storedUniversities.map(u => ({ value: u, label: u })));
       }
     }
@@ -122,14 +123,14 @@ export function AuthForm({ variant }: AuthFormProps) {
   };
 
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof loginSchema> | z.infer<typeof signupSchema>) {
     setLoading(true);
     try {
       if (variant === "signup") {
         // Gabungkan data dari semua langkah sebelum submit
         const finalData = { ...form.getValues(), ...values } as SignupData;
-        const success = await signup(finalData);
-        if (!success) throw new Error("Email ini sudah terdaftar. Silakan masuk.");
+        const { success, error } = await signup(finalData);
+        if (!success) throw new Error(error || "Pendaftaran gagal.");
         
         toast({
             title: "Pendaftaran Berhasil",
@@ -138,14 +139,15 @@ export function AuthForm({ variant }: AuthFormProps) {
         router.push("/dashboard");
 
       } else {
-        const success = await login(values.email, values.password);
-        if (!success) throw new Error("Email atau kata sandi salah.");
+        const { email, password } = values as z.infer<typeof loginSchema>;
+        const { success, error } = await login(email, password);
+        if (!success) throw new Error(error || "Login gagal.");
 
         toast({
             title: "Login Berhasil",
             description: "Anda akan diarahkan.",
         });
-        const session = localAuth.getSession();
+        const session = getSession();
         router.push(session?.isAdmin ? "/admin" : "/dashboard");
       }
     } catch (error: any) {
@@ -158,8 +160,6 @@ export function AuthForm({ variant }: AuthFormProps) {
       setLoading(false);
     }
   }
-
-  const formSchema = variant === 'signup' ? signupSchema : loginSchema;
 
   if (variant === 'login') {
     return (
@@ -274,7 +274,7 @@ export function AuthForm({ variant }: AuthFormProps) {
                         <Combobox
                             options={universityOptions}
                             {...field}
-                            value={field.value}
+                            value={field.value ?? ""}
                             onChange={(value) => form.setValue("university", value)}
                             placeholder="Pilih atau ketik universitas"
                             searchPlaceholder="Cari universitas..."
@@ -412,5 +412,3 @@ export function AuthForm({ variant }: AuthFormProps) {
     </Form>
   );
 }
-
-    

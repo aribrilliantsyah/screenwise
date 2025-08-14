@@ -26,9 +26,6 @@ type FilterStatus = 'all' | 'passed' | 'failed';
 
 const ITEMS_PER_PAGE = 5;
 
-// Helper function to create a URL-friendly slug from a string
-const slugify = (text: string) => text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-
 const questionSchema = z.object({
   questionText: z.string().min(1, "Pertanyaan tidak boleh kosong"),
   options: z.array(z.string().min(1, "Opsi tidak boleh kosong")).min(2, "Minimal 2 opsi"),
@@ -144,17 +141,16 @@ export default function AdminPage() {
     const onSubmit = async (values: QuizFormData) => {
         setIsSubmitting(true);
         try {
-            if (editingQuiz) { // Logic for editing
-                // @ts-ignore
-                const result = await updateQuiz(editingQuiz.id, values);
+            let result: QuizWithQuestions | null = null;
+            if (editingQuiz && editingQuiz.id) {
+                result = await updateQuiz(editingQuiz.id, values as QuizWithQuestions);
                 if (result) {
                     toast({ title: "Sukses!", description: "Kuis berhasil diperbarui." });
                 } else {
                      throw new Error("Gagal memperbarui kuis");
                 }
-            } else { // Logic for adding new quiz
-                // @ts-ignore
-                const result = await createQuiz(values);
+            } else {
+                result = await createQuiz(values as Omit<QuizWithQuestions, 'id'|'slug'|'questions'> & { questions: Omit<Question, 'id' | 'quizId'>[] });
                  if (result) {
                     toast({ title: "Sukses!", description: "Kuis baru berhasil ditambahkan." });
                 } else {
@@ -359,19 +355,19 @@ export default function AdminPage() {
 
     const addOption = (questionIndex: number) => {
         const question = form.getValues(`questions.${questionIndex}`);
+        const currentOptions = question.options || [];
         update(questionIndex, {
             ...question,
-            options: [...question.options, '']
+            options: [...currentOptions, '']
         });
     };
 
     const removeOption = (questionIndex: number, optionIndex: number) => {
         const question = form.getValues(`questions.${questionIndex}`);
-        const newOptions = [...question.options];
-        newOptions.splice(optionIndex, 1);
+        const newOptions = [...(question.options || [])];
+        const deletedOptionValue = newOptions.splice(optionIndex, 1)[0];
         
-        const currentCorrectAnswer = form.getValues(`questions.${index}.correctAnswer`);
-        const deletedOptionValue = question.options[optionIndex];
+        const currentCorrectAnswer = form.getValues(`questions.${questionIndex}.correctAnswer`);
 
         update(questionIndex, {
             ...question,
@@ -602,7 +598,7 @@ export default function AdminPage() {
                                                 <FormLabel>Opsi Jawaban (pilih satu yang benar)</FormLabel>
                                                 <FormControl>
                                                     <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-2">
-                                                        {form.watch(`questions.${index}.options`).map((option, optionIndex) => (
+                                                        {(form.watch(`questions.${index}.options`) || []).map((option, optionIndex) => (
                                                             <div key={optionIndex} className="flex items-center gap-2">
                                                                 <FormControl>
                                                                     <RadioGroupItem value={form.getValues(`questions.${index}.options.${optionIndex}`)} id={`q${index}-o${optionIndex}`} />
@@ -612,7 +608,7 @@ export default function AdminPage() {
                                                                     placeholder={`Opsi ${optionIndex + 1}`}
                                                                     className="flex-1"
                                                                 />
-                                                                {form.getValues(`questions.${index}.options`).length > 2 && (
+                                                                {(form.getValues(`questions.${index}.options`) || []).length > 2 && (
                                                                     <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index, optionIndex)}>
                                                                         <Trash2 className="h-4 w-4 text-destructive" />
                                                                     </Button>
@@ -703,3 +699,5 @@ export default function AdminPage() {
         </div>
     )
 }
+
+    

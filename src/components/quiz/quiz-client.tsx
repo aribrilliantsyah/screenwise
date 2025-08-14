@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { type QuizWithQuestions } from "@/actions/quiz";
+import { type QuizWithQuestions, saveAttempt } from "@/actions/quiz";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Timer } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { prisma } from "@/lib/prisma";
 
 interface QuizClientProps {
     quiz: QuizWithQuestions;
@@ -144,7 +143,7 @@ export default function QuizClient({ quiz }: QuizClientProps) {
     const scorePercentage = (score / quiz.questions.length) * 100;
     const passed = scorePercentage >= quiz.passingScore;
 
-    const attemptData = {
+    const localAttemptData = {
       quizId: quiz.id,
       answers,
       score: scorePercentage,
@@ -153,25 +152,18 @@ export default function QuizClient({ quiz }: QuizClientProps) {
     };
     
     // Save attempt for this specific quiz to local storage for quick access on dashboard
-    localStorage.setItem(`quiz_attempt_${user.email}_${quiz.id}`, JSON.stringify(attemptData));
+    localStorage.setItem(`quiz_attempt_${user.email}_${quiz.id}`, JSON.stringify(localAttemptData));
     
     try {
-      // Save attempt to database
-      const response = await fetch('/api/attempt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // Save attempt to database via server action
+      const dbAttemptData = {
           userId: user.id,
           quizId: quiz.id,
           score: scorePercentage,
           passed,
           answers,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save attempt to database');
-      }
+      };
+      await saveAttempt(dbAttemptData);
 
     } catch (error) {
         console.error("Error saving quiz attempt:", error);
