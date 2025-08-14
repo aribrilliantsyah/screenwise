@@ -16,14 +16,20 @@ export default function DynamicQuizPage() {
   
   const [allQuizzes, setAllQuizzes] = useState<QuizGroup[]>([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(true);
-  const quizId = Array.isArray(params.id) ? params.id[0] : params.id;
+  
+  const quizId = useMemo(() => Array.isArray(params.id) ? params.id[0] : params.id, [params.id]);
   
   useEffect(() => {
-    setAllQuizzes(getQuizGroups());
+    // Only run on the client
+    const quizzes = getQuizGroups();
+    setAllQuizzes(quizzes);
     setLoadingQuizzes(false);
   }, []);
   
-  const quiz = useMemo(() => allQuizzes.find(q => q.id === quizId), [quizId, allQuizzes]);
+  const quiz = useMemo(() => {
+    // This will only run after allQuizzes has been populated
+    return allQuizzes.find(q => q.id === quizId);
+  }, [quizId, allQuizzes]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -31,12 +37,22 @@ export default function DynamicQuizPage() {
     }
   }, [user, authLoading, router]);
 
-  if (authLoading || loadingQuizzes || !user) {
+  if (authLoading || loadingQuizzes) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
       </div>
     );
+  }
+
+  // After loading is finished, check for user and quiz
+  if (!user) {
+    // This case should be covered by the useEffect redirect, but as a safeguard
+    return (
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    )
   }
 
   if (!quiz) {
