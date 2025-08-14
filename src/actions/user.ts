@@ -12,15 +12,15 @@ import { Op } from 'sequelize';
 export type SignupData = Omit<UserType, 'id' | 'createdAt' | 'updatedAt' | 'isAdmin' | 'passwordHash'> & { password?: string };
 export type SafeUser = Omit<UserType, 'passwordHash'>;
 
-export async function signup(data: SignupData): Promise<{ error?: string }> {
+export async function signup(data: SignupData): Promise<{ success: boolean; error?: string }> {
     try {
         const userExists = await User.findOne({ where: { email: data.email }});
         if (userExists) {
-            return { error: "Email sudah terdaftar." };
+            return { success: false, error: "Email sudah terdaftar." };
         }
 
         if (!data.password) {
-            return { error: "Kata sandi diperlukan." };
+            return { success: false, error: "Kata sandi diperlukan." };
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -41,41 +41,34 @@ export async function signup(data: SignupData): Promise<{ error?: string }> {
         
         const { passwordHash: _, ...userWithoutPassword } = newUser.get({ plain: true });
         await createSession(userWithoutPassword);
+        return { success: true };
         
     } catch (e: any) {
         console.error("Signup error:", e);
-        return { error: e.message || "Terjadi kesalahan saat pendaftaran." };
+        return { success: false, error: e.message || "Terjadi kesalahan saat pendaftaran." };
     }
-    // Redirect after successful signup
-    redirect('/dashboard');
 }
 
-export async function login(email: string, password: string): Promise<{ error?: string }> {
+export async function login(email: string, password: string): Promise<{ success: boolean; error?: string, isAdmin?: boolean }> {
     try {
         const user = await User.findOne({ where: { email }});
         if (!user || !user.passwordHash) {
-            return { error: "Email atau kata sandi salah." };
+            return { success: false, error: "Email atau kata sandi salah." };
         }
 
         const isMatch = await bcrypt.compare(password, user.passwordHash);
         if (!isMatch) {
-            return { error: "Email atau kata sandi salah." };
+            return { success: false, error: "Email atau kata sandi salah." };
         }
         
         const { passwordHash, ...userWithoutPassword } = user.get({ plain: true });
         await createSession(userWithoutPassword);
 
+        return { success: true, isAdmin: user.isAdmin };
+
     } catch (e: any) {
         console.error("Login error:", e);
-        return { error: e.message || "Terjadi kesalahan saat login." };
-    }
-    
-    // Redirect after successful login
-    const session = await getSession();
-    if (session?.user.isAdmin) {
-        redirect('/admin');
-    } else {
-        redirect('/dashboard');
+        return { success: false, error: e.message || "Terjadi kesalahan saat login." };
     }
 }
 

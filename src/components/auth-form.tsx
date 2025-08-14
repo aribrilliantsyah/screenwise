@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -60,6 +61,7 @@ type AuthFormProps = {
 export function AuthForm({ variant }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -124,7 +126,6 @@ export function AuthForm({ variant }: AuthFormProps) {
     setLoading(true);
     try {
       if (variant === "signup") {
-        // Karena resolver di set ke signupSchema, values akan berisi semua field
         const result = await signup(values as SignupData);
         if (result?.error) throw new Error(result.error);
         
@@ -132,15 +133,19 @@ export function AuthForm({ variant }: AuthFormProps) {
             title: "Pendaftaran Berhasil",
             description: "Anda akan diarahkan ke dasbor.",
         });
+        router.push('/dashboard');
+        router.refresh();
       } else {
         const { email, password } = values as z.infer<typeof loginSchema>;
         const result = await login(email, password);
         if (result?.error) throw new Error(result.error);
-
+        
         toast({
             title: "Login Berhasil",
             description: "Anda akan diarahkan.",
         });
+        router.push(result.isAdmin ? '/admin' : '/dashboard');
+        router.refresh();
       }
     } catch (error: any) {
       toast({

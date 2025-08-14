@@ -165,8 +165,11 @@ export async function updateQuiz(quizId: number, data: Omit<QuizWithQuestions, '
 export async function deleteQuiz(quizId: number): Promise<boolean> {
     const t = await sequelize.transaction();
     try {
+        // First delete all attempts related to this quiz
         await QuizAttempt.destroy({ where: { quizId: quizId }, transaction: t });
+        // Then delete all questions related to this quiz
         await Question.destroy({ where: { quizId: quizId }, transaction: t });
+        // Finally, delete the quiz itself
         await Quiz.destroy({ where: { id: quizId }, transaction: t });
         await t.commit();
         return true;
