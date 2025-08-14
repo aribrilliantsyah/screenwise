@@ -7,21 +7,20 @@ import { useRouter } from "next/navigation";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { User as UserIcon, LogOut, LayoutDashboard } from "lucide-react";
-import type { User } from "@prisma/client";
 import { logout } from "@/actions/user";
+import { useSession } from "@/contexts/session-context";
 
 
-type SafeUser = Omit<User, 'passwordHash'>;
-
-interface HeaderProps {
-    user: SafeUser | null;
-}
-
-export function Header({ user }: HeaderProps) {
+export function Header() {
   const router = useRouter();
+  const { session } = useSession();
+  const user = session?.user;
 
   const handleLogout = async () => {
     await logout();
+    // Instead of pushing, we let the session context and page logic handle the redirect.
+    // This prevents race conditions. A page refresh might be needed if session state isn't perfectly synced.
+    window.location.href = '/login'; 
   };
 
   const isAdmin = user?.isAdmin || false;

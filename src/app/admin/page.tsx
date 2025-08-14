@@ -20,6 +20,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 import Link from "next/link";
+import { useSession } from "@/contexts/session-context";
 
 
 type FilterStatus = 'all' | 'passed' | 'failed';
@@ -48,6 +49,7 @@ export default function AdminPage() {
     const router = useRouter();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { session, loading: authLoading } = useSession();
 
     const [quizzes, setQuizzes] = useState<QuizWithQuestions[]>([]);
     const [attempts, setAttempts] = useState<EnrichedAttempt[]>([]);
@@ -376,9 +378,18 @@ export default function AdminPage() {
         setAttemptsPage(1); // Reset ke halaman pertama saat filter berubah
     };
 
-    if (isLoadingData) {
+    if (isLoadingData || authLoading) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+                <Loader2 className="h-16 w-16 animate-spin text-primary" />
+            </div>
+        );
+    }
+    
+    if (!session || !session.user.isAdmin) {
+        router.push('/login');
+        return (
+             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
             </div>
         );

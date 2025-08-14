@@ -28,7 +28,7 @@ export default async function RootLayout({
       <body className="font-body antialiased">
         <SessionProvider session={session}>
           <div className="relative flex min-h-screen flex-col">
-            <Header user={session?.user ?? null} />
+            <Header />
             <main className="flex-1">{children}</main>
           </div>
           <Toaster />

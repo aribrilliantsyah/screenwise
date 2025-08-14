@@ -132,7 +132,7 @@ export function AuthForm({ variant }: AuthFormProps) {
             title: "Pendaftaran Berhasil",
             description: "Anda akan diarahkan ke dasbor.",
         });
-
+        // No redirect here, layout effect will handle it
       } else {
         const { email, password } = values as z.infer<typeof loginSchema>;
         const result = await login(email, password);
@@ -142,6 +142,7 @@ export function AuthForm({ variant }: AuthFormProps) {
             title: "Login Berhasil",
             description: "Anda akan diarahkan.",
         });
+        // No redirect here, layout effect will handle it
       }
     } catch (error: any) {
       toast({

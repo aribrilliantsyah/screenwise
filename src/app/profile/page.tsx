@@ -22,12 +22,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Combobox } from "@/components/combobox";
 import { getAllUniversities, updateUser, changePassword } from "@/actions/user";
 import type { User } from '@/actions/user';
-import { getSession } from "@/lib/session";
+import { useSession } from "@/contexts/session-context";
 
-
-interface ProfilePageProps {
-    user: Omit<User, 'passwordHash'> | null;
-}
 
 // Skema untuk pembaruan profil
 const profileSchema = z.object({
@@ -52,25 +48,13 @@ const passwordSchema = z.object({
 export default function ProfilePage() {
     const router = useRouter();
     const { toast } = useToast();
-    const [user, setUser] = useState<Omit<User, 'passwordHash'> | null>(null);
-    const [authLoading, setAuthLoading] = useState(true);
+    const { session, loading: authLoading } = useSession();
+    
     const [profileLoading, setProfileLoading] = useState(false);
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [universityOptions, setUniversityOptions] = useState<{ value: string; label: string }[]>([]);
 
-    useEffect(() => {
-        const fetchSession = async () => {
-            const session = await getSession();
-            if (!session) {
-                router.push('/login');
-            } else {
-                setUser(session.user);
-            }
-            setAuthLoading(false);
-        };
-        fetchSession();
-    }, [router]);
-
+    const user = session?.user;
 
     const profileForm = useForm<z.infer<typeof profileSchema>>({
         resolver: zodResolver(profileSchema),
@@ -113,7 +97,16 @@ export default function ProfilePage() {
         }
     }, [user, profileForm]);
 
-    if (authLoading || !user) {
+    if (authLoading) {
+        return (
+            <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+                <Loader2 className="h-16 w-16 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!user) {
+        router.push('/login');
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -128,10 +121,10 @@ export default function ProfilePage() {
         try {
             const { user: updatedUser, error } = await updateUser(user.id, values as Partial<User>);
             if (updatedUser) {
-                setUser(updatedUser); // Update local state
+                // The session provider will automatically update the session state upon re-render or navigation
                 toast({
                     title: "Profil Diperbarui",
-                    description: "Informasi profil Anda berhasil diperbarui.",
+                    description: "Informasi profil Anda berhasil diperbarui. Silakan muat ulang halaman jika perubahan tidak langsung terlihat.",
                 });
             } else {
                  throw new Error(error || "Gagal memperbarui profil.");
