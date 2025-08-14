@@ -1,8 +1,10 @@
+
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x"]
 }
 
 datasource db {
@@ -10,42 +12,48 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-
 model User {
-  id            Int      @id @default(autoincrement())
-  email         String   @unique
-  passwordHash  String
-  name          String?
-  address       String?
-  university    String?
-  gender        String?
-  whatsapp      String?
-  phone         String?
-  photo         String? // Storing as Base64 Data URI
-  isAdmin       Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  quizAttempts  QuizAttempt[]
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  address      String?
+  university   String?
+  gender       String?
+  whatsapp     String?
+  phone        String?
+  photo        String?
+  isAdmin      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  attempts QuizAttempt[]
 }
 
 model Quiz {
-  id                Int      @id @default(autoincrement())
-  slug              String   @unique
-  title             String
-  description       String
-  passingScore      Int
-  timeLimitSeconds  Int
-  questions         Question[]
-  attempts          QuizAttempt[]
+  id               Int      @id @default(autoincrement())
+  slug             String   @unique
+  title            String
+  description      String
+  passingScore     Int
+  timeLimitSeconds Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  questions Question[]
+  attempts  QuizAttempt[]
 }
 
 model Question {
-  id            Int      @id @default(autoincrement())
+  id            Int    @id @default(autoincrement())
   quizId        Int
-  quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   questionText  String
-  options       String // Storing as JSON string
+  options       String // JSON stringified array
   correctAnswer String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
 
   @@unique([quizId, questionText])
 }
@@ -53,13 +61,14 @@ model Question {
 model QuizAttempt {
   id          Int      @id @default(autoincrement())
   userId      Int
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   quizId      Int
-  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   score       Float
   passed      Boolean
-  answers     String // Storing answers as JSON string
+  answers     String // JSON stringified object
   submittedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([quizId])
