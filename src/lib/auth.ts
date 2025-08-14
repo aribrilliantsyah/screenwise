@@ -1,6 +1,6 @@
-
 // WARNING: This is an insecure, demonstration-only authentication system.
-// Do NOT use this in a production environment. Passwords are stored in plaintext.
+// Do NOT use this in a production environment. Passwords are stored in plaintext in localStorage.
+// This file is DEPRECATED and will be replaced by a database-backed auth system.
 
 export interface User {
   email: string;
@@ -56,12 +56,10 @@ export const localAuth = {
       return null; // Pengguna sudah ada
     }
     
-    // Hapus confirmPassword sebelum menyimpan
     const { confirmPassword, ...newUser } = data;
     users.push(newUser);
     setStoredUsers(users);
     
-    // Langsung login setelah daftar
     const { password, ...userWithoutPassword } = newUser;
     localStorage.setItem(SESSION_KEY, JSON.stringify(userWithoutPassword));
     return userWithoutPassword;
@@ -96,12 +94,10 @@ export const localAuth = {
           return null;
       }
       
-      // Update data pengguna di array
       const currentUser = users[userIndex];
       users[userIndex] = { ...currentUser, ...data };
       setStoredUsers(users);
 
-      // Update data sesi
       const sessionUser = localAuth.getSession();
       if(sessionUser && sessionUser.email === email) {
           const updatedSessionUser = { ...sessionUser, ...data};
@@ -133,7 +129,7 @@ export const localAuth = {
     const users = getStoredUsers();
     const universities = users
         .map(user => user.university)
-        .filter((university): university is string => !!university); // Filter out undefined/empty values
-    return [...new Set(universities)]; // Return unique university names
+        .filter((university): university is string => !!university);
+    return [...new Set(universities)];
   }
 };
