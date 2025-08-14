@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -29,6 +29,8 @@ interface Attempt {
   passed: boolean;
   timestamp: string;
 }
+
+type FilterStatus = 'all' | 'passed' | 'failed';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -68,9 +70,11 @@ export default function AdminPage() {
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
     const [importedQuiz, setImportedQuiz] = useState<Omit<QuizFormData, 'questions'> & { questions: Omit<Question, 'id'>[] } | null>(null);
 
-    // State untuk paginasi
+    // State untuk paginasi dan filter
     const [quizPage, setQuizPage] = useState(1);
     const [attemptsPage, setAttemptsPage] = useState(1);
+    const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+
 
     useEffect(() => {
         if (!authLoading && !isAdmin) {
@@ -309,16 +313,21 @@ export default function AdminPage() {
         };
         reader.readAsArrayBuffer(file);
     };
+    
+    const filteredAttempts = useMemo(() => {
+        if (filterStatus === 'all') {
+            return attempts;
+        }
+        return attempts.filter(attempt => filterStatus === 'passed' ? attempt.passed : !attempt.passed);
+    }, [attempts, filterStatus]);
+
 
     const handleExportResults = () => {
         try {
-            const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
-            const allAttempts: Attempt[] = allAttemptsRaw ? JSON.parse(allAttemptsRaw) : [];
-
-            if (allAttempts.length === 0) {
+            if (filteredAttempts.length === 0) {
                 toast({
                     title: "Tidak Ada Data",
-                    description: "Belum ada peserta yang menyelesaikan kuis.",
+                    description: "Tidak ada data peserta yang cocok dengan filter yang dipilih.",
                 });
                 return;
             }
@@ -326,7 +335,7 @@ export default function AdminPage() {
             const allQuizzes = getQuizGroups();
             const quizTitleMap = new Map(allQuizzes.map(q => [q.id, q.title]));
 
-            const dataToExport = allAttempts.map(attempt => ({
+            const dataToExport = filteredAttempts.map(attempt => ({
                 'Email Peserta': attempt.userEmail,
                 'Nama Kuis': quizTitleMap.get(attempt.quizId) || attempt.quizId,
                 'Skor (%)': attempt.score.toFixed(0),
@@ -337,11 +346,11 @@ export default function AdminPage() {
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Hasil Peserta");
-            XLSX.writeFile(workbook, `hasil_screening_peserta_${new Date().toISOString().split('T')[0]}.xlsx`);
+            XLSX.writeFile(workbook, `hasil_screening_peserta_${new Date().toISOString().split('T')[0]}_${filterStatus}.xlsx`);
 
              toast({
                 title: "Ekspor Berhasil",
-                description: "Data hasil peserta telah diunduh.",
+                description: `Data hasil peserta (${filterStatus}) telah diunduh.`,
             });
 
         } catch (error) {
@@ -358,8 +367,8 @@ export default function AdminPage() {
     const totalQuizPages = Math.ceil(quizzes.length / ITEMS_PER_PAGE);
     const displayedQuizzes = quizzes.slice((quizPage - 1) * ITEMS_PER_PAGE, quizPage * ITEMS_PER_PAGE);
 
-    const totalAttemptPages = Math.ceil(attempts.length / ITEMS_PER_PAGE);
-    const displayedAttempts = attempts.slice((attemptsPage - 1) * ITEMS_PER_PAGE, attemptsPage * ITEMS_PER_PAGE);
+    const totalAttemptPages = Math.ceil(filteredAttempts.length / ITEMS_PER_PAGE);
+    const displayedAttempts = filteredAttempts.slice((attemptsPage - 1) * ITEMS_PER_PAGE, attemptsPage * ITEMS_PER_PAGE);
 
     const addOption = (questionIndex: number) => {
         const question = form.getValues(`questions.${questionIndex}`);
@@ -384,6 +393,10 @@ export default function AdminPage() {
         });
     };
 
+    const handleFilterChange = (status: FilterStatus) => {
+        setFilterStatus(status);
+        setAttemptsPage(1); // Reset ke halaman pertama saat filter berubah
+    };
 
     if (authLoading || !isAdmin) {
         return (
@@ -478,15 +491,22 @@ export default function AdminPage() {
                     </CardContent>
                 </Card>
                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Monitoring Peserta</CardTitle>
-                            <CardDescription>Lihat hasil kuis dari semua peserta.</CardDescription>
-                        </div>
-                        <Button onClick={handleExportResults} variant="outline">
-                            <FileDown className="mr-2 h-4 w-4"/>
-                            Ekspor Semua Hasil
-                        </Button>
+                    <CardHeader>
+                         <div className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Monitoring Peserta</CardTitle>
+                                <CardDescription>Lihat hasil kuis dari semua peserta.</CardDescription>
+                            </div>
+                             <Button onClick={handleExportResults} variant="outline">
+                                <FileDown className="mr-2 h-4 w-4"/>
+                                Ekspor Hasil
+                            </Button>
+                         </div>
+                         <div className="flex items-center gap-2 mt-4">
+                            <Button variant={filterStatus === 'all' ? 'default' : 'outline'} onClick={() => handleFilterChange('all')}>Semua</Button>
+                            <Button variant={filterStatus === 'passed' ? 'default' : 'outline'} onClick={() => handleFilterChange('passed')}>Lulus</Button>
+                            <Button variant={filterStatus === 'failed' ? 'default' : 'outline'} onClick={() => handleFilterChange('failed')}>Gagal</Button>
+                         </div>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -512,7 +532,7 @@ export default function AdminPage() {
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center">Belum ada peserta yang mengerjakan kuis.</TableCell>
+                                        <TableCell colSpan={4} className="text-center">Tidak ada peserta yang cocok dengan filter.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
