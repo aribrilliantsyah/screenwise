@@ -2,6 +2,9 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -9,8 +12,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, BrainCircuit, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { generateIsoQuiz } from "@/ai/flows/generate-quiz-flow";
+import { generateQuiz, type GenerateQuizInput } from "@/ai/flows/generate-quiz-flow";
 import { getQuizGroups, saveQuizGroups, type QuizGroup } from "@/data/quiz-data";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+
+const quizGenerationSchema = z.object({
+  topic: z.string().min(3, "Topik harus memiliki setidaknya 3 karakter."),
+  questionCount: z.coerce.number().int().min(1, "Jumlah pertanyaan minimal 1.").max(50, "Jumlah pertanyaan maksimal 50."),
+});
+
+type QuizGenerationFormData = z.infer<typeof quizGenerationSchema>;
 
 export default function AiToolsPage() {
     const { isAdmin, loading: authLoading } = useAuth();
@@ -20,11 +32,19 @@ export default function AiToolsPage() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generationSuccess, setGenerationSuccess] = useState(false);
 
-    const handleGenerateQuiz = async () => {
+    const form = useForm<QuizGenerationFormData>({
+      resolver: zodResolver(quizGenerationSchema),
+      defaultValues: {
+        topic: "Kesadaran Keamanan ISO 27001:2022",
+        questionCount: 30,
+      }
+    });
+
+    const handleGenerateQuiz = async (values: QuizGenerationFormData) => {
         setIsGenerating(true);
         setGenerationSuccess(false);
         try {
-            const generatedQuiz = await generateIsoQuiz();
+            const generatedQuiz = await generateQuiz(values);
             const currentQuizzes = getQuizGroups();
 
             // Cek apakah kuis dengan ID yang sama sudah ada
@@ -33,7 +53,7 @@ export default function AiToolsPage() {
                 toast({
                     variant: "destructive",
                     title: "Kuis Sudah Ada",
-                    description: `Kuis dengan ID "${generatedQuiz.id}" sudah ada.`,
+                    description: `Kuis dengan ID "${generatedQuiz.id}" sudah ada. Coba topik lain.`,
                 });
                 return;
             }
@@ -46,6 +66,7 @@ export default function AiToolsPage() {
                 title: "Kuis Berhasil Dibuat!",
                 description: `Kuis "${generatedQuiz.title}" telah ditambahkan ke daftar.`,
             });
+            form.reset();
 
         } catch (error) {
             console.error("Gagal membuat kuis dengan AI:", error);
@@ -72,25 +93,53 @@ export default function AiToolsPage() {
         <div className="container mx-auto max-w-4xl py-10 px-4">
             <div className="mb-8">
                 <h1 className="text-4xl font-bold font-headline">Alat Pembuat Kuis AI</h1>
-                <p className="text-lg text-muted-foreground">Gunakan AI untuk membuat kuis secara otomatis.</p>
+                <p className="text-lg text-muted-foreground">Gunakan AI untuk membuat kuis secara otomatis berdasarkan topik.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><BrainCircuit /> Pembuat Kuis ISO 27001</CardTitle>
-                        <CardDescription>Buat kuis baru tentang kesadaran ISO 27001:2022 secara otomatis menggunakan GenAI.</CardDescription>
+                        <CardTitle className="flex items-center gap-2"><BrainCircuit /> Pembuat Kuis Dinamis</CardTitle>
+                        <CardDescription>Masukkan topik dan jumlah soal untuk membuat kuis baru secara otomatis menggunakan GenAI.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
-                        <p className="text-sm text-muted-foreground">
-                            Klik tombol di bawah untuk membuat satu set kuis berisi 30 pertanyaan pilihan ganda tentang ISO 27001:2022. Kuis yang dihasilkan akan secara otomatis ditambahkan ke daftar kuis yang tersedia.
-                        </p>
-                        <Button onClick={handleGenerateQuiz} disabled={isGenerating}>
-                            {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isGenerating ? 'Membuat Kuis...' : 'Buat Kuis ISO 27001'}
-                        </Button>
+                        <Form {...form}>
+                          <form onSubmit={form.handleSubmit(handleGenerateQuiz)} className="space-y-4">
+                            <FormField
+                              control={form.control}
+                              name="topic"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Topik Kuis</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="cth: Kesadaran Phishing" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="questionCount"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Jumlah Pertanyaan</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <Button type="submit" disabled={isGenerating}>
+                              {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              {isGenerating ? 'Membuat Kuis...' : 'Buat Kuis'}
+                            </Button>
+                          </form>
+                        </Form>
+
                         {generationSuccess && (
-                            <Alert variant="default" className="bg-green-50 border-green-200">
+                            <Alert variant="default" className="mt-4 bg-green-50 border-green-200">
                                 <CheckCircle className="h-4 w-4 text-green-600" />
                                 <AlertTitle className="text-green-800">Berhasil!</AlertTitle>
                                 <AlertDescription className="text-green-700">
