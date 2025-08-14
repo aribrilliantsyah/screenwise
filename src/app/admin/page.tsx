@@ -555,6 +555,7 @@ export default function AdminPage() {
                                     <TableHead>Kuis</TableHead>
                                     <TableHead>Skor</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Tanggal Pengerjaan</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -572,10 +573,11 @@ export default function AdminPage() {
                                               {attempt.passed ? 'Lulus' : 'Gagal'}
                                             </span>
                                         </TableCell>
+                                         <TableCell>{new Date(attempt.timestamp).toLocaleString('id-ID')}</TableCell>
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center">Tidak ada peserta yang cocok dengan filter.</TableCell>
+                                        <TableCell colSpan={6} className="text-center">Tidak ada peserta yang cocok dengan filter.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
