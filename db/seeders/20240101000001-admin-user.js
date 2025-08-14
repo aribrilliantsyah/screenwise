@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     const adminEmail = 'admin@screenwise.com';
+    // Ensure we are AWAITING the promise to resolve before hashing.
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash('rahasia', salt);
 

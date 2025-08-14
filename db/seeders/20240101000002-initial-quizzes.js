@@ -68,14 +68,15 @@ module.exports = {
         let quizId;
         if (existingQuiz.length > 0) {
             quizId = existingQuiz[0].id;
+            // Also delete existing questions for this quiz to ensure a clean seed
+            await queryInterface.bulkDelete('Questions', { quizId: quizId }, { transaction });
         } else {
-            await queryInterface.bulkInsert('Quizzes', [{
+            const newQuizResult = await queryInterface.bulkInsert('Quizzes', [{
                 ...quizInfo,
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }], { transaction });
+            }], { transaction, returning: ['id'] });
 
-            // Re-fetch the quiz to get its ID, as SQLite doesn't return it on bulkInsert
             const newQuizRecord = await queryInterface.sequelize.query(
                `SELECT id FROM Quizzes WHERE slug = :slug`,
                { replacements: { slug: quizInfo.slug }, type: Sequelize.QueryTypes.SELECT, transaction }
@@ -83,22 +84,17 @@ module.exports = {
             quizId = newQuizRecord[0].id;
         }
 
-        for (const q of questions) {
-            const existingQuestion = await queryInterface.sequelize.query(
-                `SELECT id FROM Questions WHERE quizId = :quizId AND questionText = :questionText`,
-                { replacements: { quizId, questionText: q.questionText }, type: Sequelize.QueryTypes.SELECT, transaction }
-            );
+        const questionInserts = questions.map(q => ({
+            quizId: quizId,
+            questionText: q.questionText,
+            options: JSON.stringify(q.options),
+            correctAnswer: q.correctAnswer,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        }));
 
-            if(existingQuestion.length === 0) {
-                 await queryInterface.bulkInsert('Questions', [{
-                    quizId: quizId,
-                    questionText: q.questionText,
-                    options: JSON.stringify(q.options),
-                    correctAnswer: q.correctAnswer,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                }], { transaction });
-            }
+        if (questionInserts.length > 0) {
+          await queryInterface.bulkInsert('Questions', questionInserts, { transaction });
         }
       }
       await transaction.commit();
@@ -109,7 +105,14 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.bulkDelete('Questions', null, {});
-    await queryInterface.bulkDelete('Quizzes', null, {});
+    const transaction = await queryInterface.sequelize.transaction();
+    try {
+        await queryInterface.bulkDelete('Questions', null, { transaction });
+        await queryInterface.bulkDelete('Quizzes', null, { transaction });
+        await transaction.commit();
+    } catch(err) {
+        await transaction.rollback();
+        throw err;
+    }
   }
 };
