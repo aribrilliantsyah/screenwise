@@ -98,13 +98,13 @@ async function main() {
               }
           },
           update: {
-              options: q.options,
+              options: JSON.stringify(q.options),
               correctAnswer: q.correctAnswer,
           },
           create: {
               quizId: quiz.id,
               questionText: q.questionText,
-              options: q.options,
+              options: JSON.stringify(q.options),
               correctAnswer: q.correctAnswer,
           }
       });

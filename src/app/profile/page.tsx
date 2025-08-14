@@ -18,11 +18,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox } from "@/components/combobox";
 import { getAllUniversities, updateUser, changePassword } from "@/actions/user";
-import type { User } from '@prisma/client';
+import type { User } from '@/actions/user';
+import { getSession } from "@/lib/session";
+
+
+interface ProfilePageProps {
+    user: Omit<User, 'passwordHash'> | null;
+}
 
 // Skema untuk pembaruan profil
 const profileSchema = z.object({
@@ -45,21 +50,36 @@ const passwordSchema = z.object({
 
 
 export default function ProfilePage() {
-    const { user, loading: authLoading, setSession } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
+    const [user, setUser] = useState<Omit<User, 'passwordHash'> | null>(null);
+    const [authLoading, setAuthLoading] = useState(true);
     const [profileLoading, setProfileLoading] = useState(false);
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [universityOptions, setUniversityOptions] = useState<{ value: string; label: string }[]>([]);
 
+    useEffect(() => {
+        const fetchSession = async () => {
+            const session = await getSession();
+            if (!session) {
+                router.push('/login');
+            } else {
+                setUser(session.user);
+            }
+            setAuthLoading(false);
+        };
+        fetchSession();
+    }, [router]);
+
+
     const profileForm = useForm<z.infer<typeof profileSchema>>({
         resolver: zodResolver(profileSchema),
         defaultValues: {
-            name: user?.name || "",
-            address: user?.address || "",
-            university: user?.university || "",
-            whatsapp: user?.whatsapp || "",
-            phone: user?.phone || "",
+            name: "",
+            address: "",
+            university: "",
+            whatsapp: "",
+            phone: "",
         },
     });
 
@@ -93,7 +113,7 @@ export default function ProfilePage() {
         }
     }, [user, profileForm]);
 
-    if (authLoading) {
+    if (authLoading || !user) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -101,17 +121,14 @@ export default function ProfilePage() {
         );
     }
 
-    if (!user) {
-        router.push('/login');
-        return null; // Tampilkan null sementara redirect
-    }
 
     const onProfileSubmit = async (values: z.infer<typeof profileSchema>) => {
+        if(!user) return;
         setProfileLoading(true);
         try {
             const { user: updatedUser, error } = await updateUser(user.id, values as Partial<User>);
             if (updatedUser) {
-                setSession(updatedUser); // Update state di context
+                setUser(updatedUser); // Update local state
                 toast({
                     title: "Profil Diperbarui",
                     description: "Informasi profil Anda berhasil diperbarui.",
@@ -131,9 +148,10 @@ export default function ProfilePage() {
     };
 
     const onPasswordSubmit = async (values: z.infer<typeof passwordSchema>) => {
+        if(!user) return;
         setPasswordLoading(true);
         try {
-            const { success, error } = await changePassword({userId: user.id, oldPassword: values.oldPassword, newPassword: values.newPassword});
+            const { success, error } = await changePassword(user.id, values.oldPassword, values.newPassword);
             if (success) {
                 toast({
                     title: "Kata Sandi Diperbarui",

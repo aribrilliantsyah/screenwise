@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { Header } from '@/components/header';
 import { Inter } from 'next/font/google';
-import { AuthProvider } from '@/contexts/auth-context';
+import { getSession } from '@/lib/session';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -16,21 +16,20 @@ export const metadata: Metadata = {
   description: 'Platform kuis cerdas untuk menyaring kandidat dan menganalisis kinerja.',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSession();
   return (
     <html lang="id" className={inter.variable}>
       <body className="font-body antialiased">
-        <AuthProvider>
           <div className="relative flex min-h-screen flex-col">
-            <Header />
+            <Header user={session?.user ?? null} />
             <main className="flex-1">{children}</main>
           </div>
           <Toaster />
-        </AuthProvider>
       </body>
     </html>
   );

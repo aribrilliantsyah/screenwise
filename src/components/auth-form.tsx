@@ -5,7 +5,6 @@ import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -18,11 +17,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, User as UserIcon, Camera } from "lucide-react";
-import { useAuth, type SignupData } from "@/contexts/auth-context";
+import { login, signup, getAllUniversities } from "@/actions/user";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Combobox } from "./combobox";
-import { getAllUniversities } from "@/actions/user";
+import type { SignupData } from '@/actions/user';
 
 
 // Skema untuk langkah 1: Data Diri
@@ -61,9 +60,7 @@ type AuthFormProps = {
 export function AuthForm({ variant }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
-  const router = useRouter();
   const { toast } = useToast();
-  const { login, signup, getSession } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [universityOptions, setUniversityOptions] = useState<{ value: string; label: string }[]>([]);
@@ -127,28 +124,24 @@ export function AuthForm({ variant }: AuthFormProps) {
     setLoading(true);
     try {
       if (variant === "signup") {
-        // Gabungkan data dari semua langkah sebelum submit
         const finalData = { ...form.getValues(), ...values } as SignupData;
-        const { success, error } = await signup(finalData);
-        if (!success) throw new Error(error || "Pendaftaran gagal.");
+        const result = await signup(finalData);
+        if (result?.error) throw new Error(result.error);
         
         toast({
             title: "Pendaftaran Berhasil",
             description: "Anda akan diarahkan ke dasbor.",
         });
-        router.push("/dashboard");
 
       } else {
         const { email, password } = values as z.infer<typeof loginSchema>;
-        const { success, error } = await login(email, password);
-        if (!success) throw new Error(error || "Login gagal.");
+        const result = await login(email, password);
+        if (result?.error) throw new Error(result.error);
 
         toast({
             title: "Login Berhasil",
             description: "Anda akan diarahkan.",
         });
-        const session = getSession();
-        router.push(session?.isAdmin ? "/admin" : "/dashboard");
       }
     } catch (error: any) {
       toast({

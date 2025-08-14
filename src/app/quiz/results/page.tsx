@@ -1,17 +1,18 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { analyzeQuizPerformance, type AnalyzeQuizPerformanceOutput } from "@/ai/flows/analyze-quiz-performance";
-import { getQuizById, type QuizWithQuestions } from "@/actions/quiz";
+import { getQuizById, type QuizWithQuestions, type QuestionWithOptions } from "@/actions/quiz";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, BrainCircuit, Lightbulb, CheckCircle, XCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/contexts/auth-context";
+import { getSession } from "@/lib/session";
 import { MOCK_SUBMISSIONS } from "@/data/quiz-data";
+import type { User } from "@prisma/client";
 
 interface Attempt {
   answers: Record<string, string>;
@@ -21,11 +22,12 @@ interface Attempt {
   quizId: number;
 }
 
-export default function ResultsPage() {
+function ResultsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, loading: authLoading } = useAuth();
-  
+  const [user, setUser] = useState<Omit<User, 'passwordHash'> | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [analysis, setAnalysis] = useState<AnalyzeQuizPerformanceOutput | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,42 +38,40 @@ export default function ResultsPage() {
   const quizId = searchParams.get('quizId');
 
   useEffect(() => {
-      async function loadQuiz() {
-          if (!quizId) {
-              router.push('/dashboard');
-              return;
-          }
-          const quizData = await getQuizById(Number(quizId));
-          if (quizData) {
-              setQuiz(quizData);
-          } else {
-              router.push('/dashboard');
-          }
-      }
-      loadQuiz();
-  }, [quizId, router]);
-
-
-  useEffect(() => {
-    if (authLoading || !quiz) return; 
-
-    if (!user) {
+    async function loadData() {
+      setLoading(true);
+      const session = await getSession();
+      if (!session) {
         router.push('/login');
         return;
-    }
-    
-    const storedAttempt = localStorage.getItem(`quiz_attempt_${user.email}_${quiz.id}`);
-    if (storedAttempt) {
-      const parsedAttempt = JSON.parse(storedAttempt);
-      setAttempt(parsedAttempt);
-      fetchAnalysis(parsedAttempt, user.email, quiz);
+      }
+      setUser(session.user);
+      setAuthLoading(false);
+
+      if (!quizId) {
+        router.push('/dashboard');
+        return;
+      }
+
+      const quizData = await getQuizById(Number(quizId));
+      if (quizData) {
+        setQuiz(quizData);
+        const storedAttempt = localStorage.getItem(`quiz_attempt_${session.user.email}_${quizData.id}`);
+        if (storedAttempt) {
+          const parsedAttempt = JSON.parse(storedAttempt);
+          setAttempt(parsedAttempt);
+          fetchAnalysis(parsedAttempt, session.user.email, quizData);
+        } else {
+          router.push(`/dashboard`);
+        }
+      } else {
+        router.push('/dashboard');
+      }
       setLoading(false);
-    } else { 
-      // Jika tidak ada percobaan, mungkin pengguna mencoba mengakses langsung.
-      // Arahkan ke dasbor agar mereka bisa memilih kuis.
-      router.push(`/dashboard`);
     }
-  }, [router, user, authLoading, quiz]);
+    loadData();
+  }, [quizId, router]);
+
 
   const fetchAnalysis = async (userAttempt: Attempt, currentUserId: string, currentQuiz: QuizWithQuestions) => {
     setLoadingAnalysis(true);
@@ -178,7 +178,7 @@ export default function ResultsPage() {
             <div>
                  <h3 className="text-xl font-semibold mb-4 text-center">Jawaban Anda</h3>
                  <div className="space-y-4">
-                 {quiz.questions.map((q) => {
+                 {(quiz.questions as QuestionWithOptions[]).map((q) => {
                      const userAnswer = attempt.answers[q.id] || "Tidak dijawab";
                      const isCorrect = userAnswer === q.correctAnswer;
                      return (
@@ -205,4 +205,12 @@ export default function ResultsPage() {
       </Card>
     </div>
   );
+}
+
+export default function ResultsPage() {
+    return (
+        <Suspense fallback={<div className="flex h-[calc(100vh-4rem)] items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>}>
+            <ResultsContent />
+        </Suspense>
+    )
 }

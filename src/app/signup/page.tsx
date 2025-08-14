@@ -1,34 +1,17 @@
 
-"use client";
-
-import { useEffect } from "react";
-import { useAuth } from "@/contexts/auth-context";
-import { useRouter } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { getSession } from "@/lib/session";
+import { redirect } from "next/navigation";
 
-export default function SignupPage() {
-  const { user, loading, isAdmin } = useAuth();
-  const router = useRouter();
+export default async function SignupPage() {
+  const session = await getSession();
 
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.push(isAdmin ? "/admin" : "/dashboard");
-      }
-    }
-  }, [user, loading, isAdmin, router]);
-
-  if (loading || user) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-      </div>
-    );
+  if (session) {
+    redirect(session.user.isAdmin ? "/admin" : "/dashboard");
   }
-  
+
   return (
     <div className="flex items-center justify-center px-4 py-12">
       <Card className="mx-auto w-full max-w-sm">

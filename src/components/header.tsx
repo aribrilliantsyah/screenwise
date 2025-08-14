@@ -3,28 +3,35 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { User as UserIcon, LogOut, LayoutDashboard } from "lucide-react";
+import type { User } from "@prisma/client";
+import { logout } from "@/actions/user";
 
 
-export function Header() {
-  const { user, isAdmin, logout } = useAuth();
+type SafeUser = Omit<User, 'passwordHash'>;
+
+interface HeaderProps {
+    user: SafeUser | null;
+}
+
+export function Header({ user }: HeaderProps) {
   const router = useRouter();
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
+  const handleLogout = async () => {
+    await logout();
   };
+
+  const isAdmin = user?.isAdmin || false;
 
   const getDashboardLink = () => {
     if (!user) return "/";
     return isAdmin ? "/admin" : "/dashboard";
   }
 
-  const getInitials = (name: string) => {
+  const getInitials = (name: string | null) => {
     if (!name) return "P";
     const names = name.split(' ');
     if (names.length > 1) {
@@ -54,7 +61,7 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                         <Avatar className="h-10 w-10">
-                            <AvatarImage src={user.photo || undefined} alt={user.name}/>
+                            <AvatarImage src={user.photo || undefined} alt={user.name ?? ''}/>
                             <AvatarFallback>
                                 {getInitials(user.name)}
                             </AvatarFallback>

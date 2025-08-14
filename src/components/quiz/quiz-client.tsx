@@ -10,10 +10,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Timer } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
+import type { User } from "@prisma/client";
 
 interface QuizClientProps {
     quiz: QuizWithQuestions;
+    user: Omit<User, 'passwordHash'>;
 }
 
 interface ActiveQuizSession {
@@ -24,8 +25,7 @@ interface ActiveQuizSession {
 }
 
 
-export default function QuizClient({ quiz }: QuizClientProps) {
-  const { user } = useAuth();
+export default function QuizClient({ quiz, user }: QuizClientProps) {
   const router = useRouter();
   
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -33,10 +33,10 @@ export default function QuizClient({ quiz }: QuizClientProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   
-  const sessionKey = user ? `active_quiz_session_${user.email}` : '';
+  const sessionKey = `active_quiz_session_${user.email}`;
 
   const saveProgress = useCallback(() => {
-    if (!user || !sessionKey) return;
+    if (!sessionKey) return;
     const session: ActiveQuizSession = {
       quizId: quiz.id,
       timeLeft,
@@ -44,12 +44,12 @@ export default function QuizClient({ quiz }: QuizClientProps) {
       startTime: Date.now()
     };
     localStorage.setItem(sessionKey, JSON.stringify(session));
-  }, [user, sessionKey, quiz.id, timeLeft, answers]);
+  }, [sessionKey, quiz.id, timeLeft, answers]);
 
 
   // Initialize state from localStorage or start fresh
   useEffect(() => {
-    if (!user || !sessionKey) return;
+    if (!sessionKey) return;
 
     const savedSessionRaw = localStorage.getItem(sessionKey);
     if (savedSessionRaw) {
@@ -58,19 +58,24 @@ export default function QuizClient({ quiz }: QuizClientProps) {
         if (savedSession.quizId === quiz.id) {
             setAnswers(savedSession.answers || {});
             // Recalculate time left based on when it was last saved
-            const elapsed = Math.floor((Date.now() - savedSession.startTime) / 1000);
-            const newTimeLeft = savedSession.timeLeft - elapsed;
+            const now = Date.now();
+            const elapsedSinceSave = Math.floor((now - savedSession.startTime) / 1000);
+            const newTimeLeft = savedSession.timeLeft - elapsedSinceSave;
             setTimeLeft(newTimeLeft > 0 ? newTimeLeft : 0);
         } else {
             // It's a session for a different quiz, so start fresh for this one
-            // This case shouldn't happen with the dashboard logic, but as a safeguard:
             localStorage.removeItem(sessionKey); // Clear the old session
+            const initialSession: ActiveQuizSession = { 
+              quizId: quiz.id, 
+              timeLeft: quiz.timeLimitSeconds, 
+              answers: {}, 
+              startTime: Date.now()
+            };
+            localStorage.setItem(sessionKey, JSON.stringify(initialSession));
             setTimeLeft(quiz.timeLimitSeconds);
-            saveProgress(); // Start a new session
         }
     } else {
         // No saved session, start a new one
-        setTimeLeft(quiz.timeLimitSeconds);
         const initialSession: ActiveQuizSession = { 
           quizId: quiz.id, 
           timeLeft: quiz.timeLimitSeconds, 
@@ -78,10 +83,11 @@ export default function QuizClient({ quiz }: QuizClientProps) {
           startTime: Date.now()
         };
         localStorage.setItem(sessionKey, JSON.stringify(initialSession));
+        setTimeLeft(quiz.timeLimitSeconds);
     }
     setIsInitialized(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, quiz.id, sessionKey]);
+  }, [quiz.id, sessionKey]);
 
 
   // Timer logic
@@ -114,7 +120,7 @@ export default function QuizClient({ quiz }: QuizClientProps) {
     const newAnswers = { ...answers, [questionId]: value };
     setAnswers(newAnswers);
     // Save progress on every answer change for better resilience
-     if (!user || !sessionKey) return;
+    if (!sessionKey) return;
     const session: ActiveQuizSession = {
       quizId: quiz.id,
       timeLeft,
@@ -127,8 +133,8 @@ export default function QuizClient({ quiz }: QuizClientProps) {
   const handleSubmit = useCallback(async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    if (!user || !sessionKey) {
-      console.error("User not logged in.");
+    if (!sessionKey) {
+      console.error("User session not found.");
       router.push('/login');
       return;
     }

@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useAuth } from "@/contexts/auth-context";
 import { getQuizzes, type QuizWithQuestions } from "@/actions/quiz";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,6 +8,8 @@ import { Loader2, PlayCircle, BarChart2, HelpCircle, Clock, Award, LucideRedo, C
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { getSession } from "@/lib/session";
+import type { User } from "@prisma/client";
 
 interface AttemptStatus {
   [quizId: number]: {
@@ -26,36 +27,38 @@ interface ActiveQuizSession {
 
 
 export default function DashboardPage() {
-  const { user, loading, isAdmin } = useAuth();
   const router = useRouter();
+  const [user, setUser] = useState<Omit<User, 'passwordHash'> | null>(null);
+  const [loading, setLoading] = useState(true);
+
   const [allQuizzes, setAllQuizzes] = useState<QuizWithQuestions[]>([]);
   const [attemptStatus, setAttemptStatus] = useState<AttemptStatus>({});
   const [activeSession, setActiveSession] = useState<ActiveQuizSession | null>(null);
   const [loadingQuiz, setLoadingQuiz] = useState<number | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   
-
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/login");
-      } else if (isAdmin) {
-        router.push("/admin");
-      }
-    }
-  }, [user, loading, isAdmin, router]);
+    const fetchSessionAndData = async () => {
+        const session = await getSession();
+        if (!session) {
+            router.push("/login");
+            return;
+        }
+        if (session.user.isAdmin) {
+            router.push("/admin");
+            return;
+        }
+        setUser(session.user);
+        setLoading(false);
 
-  useEffect(() => {
-    async function loadData() {
-        if (!user) return;
+        // Load quizzes and attempt history
         setIsLoadingData(true);
         const quizzes = await getQuizzes();
         setAllQuizzes(quizzes);
 
-        // Load attempt history
         const status: AttemptStatus = {};
         quizzes.forEach(quiz => {
-            const attemptRaw = localStorage.getItem(`quiz_attempt_${user.email}_${quiz.id}`);
+            const attemptRaw = localStorage.getItem(`quiz_attempt_${session.user.email}_${quiz.id}`);
             if (attemptRaw) {
                 const attempt = JSON.parse(attemptRaw);
                 status[quiz.id] = { passed: attempt.passed, score: attempt.score };
@@ -66,30 +69,40 @@ export default function DashboardPage() {
         setAttemptStatus(status);
 
         // Load active session
-        const activeSessionRaw = localStorage.getItem(`active_quiz_session_${user.email}`);
+        const activeSessionRaw = localStorage.getItem(`active_quiz_session_${session.user.email}`);
         if (activeSessionRaw) {
             setActiveSession(JSON.parse(activeSessionRaw));
         }
         setIsLoadingData(false);
-    }
+    };
+    
+    fetchSessionAndData();
+  }, [router]);
 
-    if (user) {
-        loadData();
-    }
-  }, [user]);
 
   const handleNavigation = (quizId: number, path: string) => {
     setLoadingQuiz(quizId);
     router.push(path);
   };
 
-  if (loading || !user || isAdmin || isLoadingData) {
+  if (loading || !user || isLoadingData) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
       </div>
     );
   }
+  
+  const isAdmin = user?.isAdmin || false;
+  if(isAdmin){
+      router.push('/admin');
+      return (
+          <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+            <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          </div>
+      );
+  }
+
 
   const isQuizActive = !!activeSession;
   const attemptedQuizzes = allQuizzes.filter(quiz => !!attemptStatus[quiz.id]);

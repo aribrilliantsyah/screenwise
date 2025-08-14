@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -10,7 +9,7 @@ import * as z from "zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, PlusCircle, Edit, Trash2, FileDown, Upload, BrainCircuit } from "lucide-react";
-import { createQuiz, deleteQuiz, getEnrichedAttempts, getQuizzes, updateQuiz, type QuizWithQuestions, type EnrichedAttempt } from "@/actions/quiz";
+import { createQuiz, deleteQuiz, getEnrichedAttempts, getQuizzes, updateQuiz, type QuizWithQuestions, type EnrichedAttempt, type QuestionWithOptions } from "@/actions/quiz";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -22,6 +21,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import * as XLSX from "xlsx";
 import Link from "next/link";
 
+
 type FilterStatus = 'all' | 'passed' | 'failed';
 
 const ITEMS_PER_PAGE = 5;
@@ -30,7 +30,7 @@ const questionSchema = z.object({
   questionText: z.string().min(1, "Pertanyaan tidak boleh kosong"),
   options: z.array(z.string().min(1, "Opsi tidak boleh kosong")).min(2, "Minimal 2 opsi"),
   correctAnswer: z.string({ required_error: "Anda harus memilih jawaban yang benar." }).min(1, "Anda harus memilih jawaban yang benar."),
-  id: z.any().optional(), // ID bisa string atau number
+  id: z.number().optional(),
 });
 
 const quizFormSchema = z.object({
@@ -45,7 +45,6 @@ const quizFormSchema = z.object({
 type QuizFormData = z.infer<typeof quizFormSchema>;
 
 export default function AdminPage() {
-    const { isAdmin, loading: authLoading } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -69,12 +68,6 @@ export default function AdminPage() {
     const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
 
 
-    useEffect(() => {
-        if (!authLoading && !isAdmin) {
-            router.push('/login');
-        }
-    }, [isAdmin, authLoading, router]);
-
     const loadData = async () => {
         setIsLoadingData(true);
         const [quizData, attemptData] = await Promise.all([
@@ -87,10 +80,8 @@ export default function AdminPage() {
     };
 
     useEffect(() => {
-        if (isAdmin) {
-            loadData();
-        }
-    }, [isAdmin]);
+        loadData();
+    }, []);
 
     const form = useForm<QuizFormData>({
         resolver: zodResolver(quizFormSchema),
@@ -99,7 +90,7 @@ export default function AdminPage() {
             description: "",
             passingScore: 70,
             timeLimitSeconds: 300,
-            questions: [{ questionText: "", options: ["", ""], correctAnswer: undefined, id: 1 }]
+            questions: [{ questionText: "", options: ["", ""], correctAnswer: undefined }]
         },
     });
 
@@ -119,7 +110,7 @@ export default function AdminPage() {
             description: "",
             passingScore: 70,
             timeLimitSeconds: 300,
-            questions: [{ questionText: "", options: ["", ""], correctAnswer: undefined, id: 1 }]
+            questions: [{ questionText: "", options: ["", ""], correctAnswer: undefined }]
         });
         setIsAddOrEditDialogOpen(true);
     };
@@ -150,7 +141,7 @@ export default function AdminPage() {
                      throw new Error("Gagal memperbarui kuis");
                 }
             } else {
-                result = await createQuiz(values as Omit<QuizWithQuestions, 'id'|'slug'|'questions'> & { questions: Omit<Question, 'id' | 'quizId'>[] });
+                result = await createQuiz(values as Omit<QuizWithQuestions, 'id'|'questions'> & { questions: Omit<QuestionWithOptions, 'id' | 'quizId'>[] });
                  if (result) {
                     toast({ title: "Sukses!", description: "Kuis baru berhasil ditambahkan." });
                 } else {
@@ -318,6 +309,10 @@ export default function AdminPage() {
                 return {
                     'Email Peserta': attempt.user.email,
                     'Nama Lengkap': attempt.user.name || 'N/A',
+                    'Alamat': attempt.user.address || 'N/A',
+                    'Universitas': attempt.user.university || 'N/A',
+                    'Jenis Kelamin': attempt.user.gender || 'N/A',
+                    'No. WhatsApp': attempt.user.whatsapp || 'N/A',
                     'No. HP': attempt.user.phone || 'N/A',
                     'Nama Kuis': attempt.quiz.title,
                     'Skor (%)': attempt.score.toFixed(0),
@@ -381,7 +376,7 @@ export default function AdminPage() {
         setAttemptsPage(1); // Reset ke halaman pertama saat filter berubah
     };
 
-    if (authLoading || isLoadingData) {
+    if (isLoadingData) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -624,7 +619,7 @@ export default function AdminPage() {
                                          <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>Tambah Opsi</Button>
                                     </div>
                                 ))}
-                                <Button type="button" variant="outline" onClick={() => append({ questionText: "", options: ["", ""], correctAnswer: undefined, id: Date.now() })}>Tambah Pertanyaan</Button>
+                                <Button type="button" variant="outline" onClick={() => append({ questionText: "", options: ["", ""], correctAnswer: undefined })}>Tambah Pertanyaan</Button>
                             </div>
                             
                             <DialogFooter>
@@ -699,5 +694,3 @@ export default function AdminPage() {
         </div>
     )
 }
-
-    

@@ -10,41 +10,42 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+
 model User {
-  id            Int           @id @default(autoincrement())
-  email         String        @unique
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
   passwordHash  String
-  name          String
-  photo         String?
-  address       String
+  name          String?
+  address       String?
   university    String?
-  gender        String
-  whatsapp      String
-  phone         String
-  isAdmin       Boolean       @default(false)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  gender        String?
+  whatsapp      String?
+  phone         String?
+  photo         String? // Storing as Base64 Data URI
+  isAdmin       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   quizAttempts  QuizAttempt[]
 }
 
 model Quiz {
-  id               Int           @id @default(autoincrement())
-  slug             String        @unique
-  title            String
-  description      String
-  passingScore     Int
-  timeLimitSeconds Int
-  questions        Question[]
-  quizAttempts     QuizAttempt[]
+  id                Int      @id @default(autoincrement())
+  slug              String   @unique
+  title             String
+  description       String
+  passingScore      Int
+  timeLimitSeconds  Int
+  questions         Question[]
+  attempts          QuizAttempt[]
 }
 
 model Question {
   id            Int      @id @default(autoincrement())
   quizId        Int
-  questionText  String
-  options       String[]
-  correctAnswer String
   quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionText  String
+  options       String // Storing as JSON string
+  correctAnswer String
 
   @@unique([quizId, questionText])
 }
@@ -52,11 +53,14 @@ model Question {
 model QuizAttempt {
   id          Int      @id @default(autoincrement())
   userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   quizId      Int
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   score       Float
   passed      Boolean
-  answers     Json // Storing answers as JSON
+  answers     String // Storing answers as JSON string
   submittedAt DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([quizId])
 }
