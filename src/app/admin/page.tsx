@@ -34,6 +34,9 @@ type FilterStatus = 'all' | 'passed' | 'failed';
 
 const ITEMS_PER_PAGE = 5;
 
+// Helper function to create a URL-friendly slug from a string
+const slugify = (text: string) => text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
 const questionSchema = z.object({
   question: z.string().min(1, "Pertanyaan tidak boleh kosong"),
   options: z.array(z.string().min(1, "Opsi tidak boleh kosong")).min(2, "Minimal 2 opsi"),
@@ -139,13 +142,17 @@ export default function AdminPage() {
     const onSubmit = (values: QuizFormData) => {
         setIsSubmitting(true);
         try {
+            const newSlug = slugify(values.title);
+
             if (editingQuiz) { // Logic for editing
                 const updatedQuiz: QuizGroup = {
                     ...editingQuiz,
                     ...values,
+                     // Re-slugify the id based on the new title to keep it consistent
+                    id: `${newSlug}-${editingQuiz.id.split('-').pop()}`, // Keep original timestamp for stability
                     questions: values.questions.map((q, index) => ({ 
                         ...q, 
-                        id: q.id || index + 1 // Pertahankan ID lama jika ada
+                        id: q.id || index + 1
                     })),
                 };
                 const updatedQuizzes = quizzes.map(q => q.id === editingQuiz.id ? updatedQuiz : q);
@@ -155,7 +162,7 @@ export default function AdminPage() {
 
             } else { // Logic for adding new quiz
                 const newQuiz: QuizGroup = {
-                    id: values.title.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+                    id: `${newSlug}-${Date.now()}`, // Create a unique slug
                     ...values,
                     questions: values.questions.map((q, index) => ({ ...q, id: index + 1 })),
                 };
@@ -169,7 +176,6 @@ export default function AdminPage() {
             setIsAddOrEditDialogOpen(false);
             setEditingQuiz(null);
             
-            // Tutup juga dialog impor jika terbuka
             if (isImportDialogOpen) {
                 setIsImportDialogOpen(false);
                 setImportedQuiz(null);
@@ -709,5 +715,3 @@ export default function AdminPage() {
         </div>
     )
 }
-
-    

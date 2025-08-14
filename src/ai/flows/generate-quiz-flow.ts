@@ -51,7 +51,7 @@ const generateQuizPrompt = ai.definePrompt({
 Topic: {{{topic}}}
 
 Please generate a complete quiz object that includes:
-1.  A unique ID based on the topic (e.g., '{{{topic}}}'-awareness).
+1.  A unique ID. This should be a URL-friendly "slug" version of the quiz title (e.g., for "Kuis Kesadaran Phishing", the id would be "kuis-kesadaran-phishing").
 2.  A suitable title (e.g., "Kuis Kesadaran {{{topic}}}").
 3.  A brief description of the quiz.
 4.  A passing score of 70.
@@ -80,6 +80,9 @@ const generateQuizFlow = ai.defineFlow(
   },
   async (input) => {
     const {output} = await generateQuizPrompt(input);
+    // Ensure the generated ID is a unique slug
+    const slug = output!.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    output!.id = `${slug}-${Date.now()}`;
     return output!;
   }
 );
