@@ -60,7 +60,7 @@ module.exports = {
       for (const quizData of initialQuizGroups) {
         const { questions, ...quizInfo } = quizData;
         
-        const existingQuiz = await queryInterface.sequelize.query(
+        let existingQuiz = await queryInterface.sequelize.query(
             `SELECT id FROM Quizzes WHERE slug = :slug`,
             { replacements: { slug: quizInfo.slug }, type: Sequelize.QueryTypes.SELECT, transaction }
         );
@@ -69,12 +69,18 @@ module.exports = {
         if (existingQuiz.length > 0) {
             quizId = existingQuiz[0].id;
         } else {
-            const newQuiz = await queryInterface.bulkInsert('Quizzes', [{
+            await queryInterface.bulkInsert('Quizzes', [{
                 ...quizInfo,
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }], { transaction, returning: ['id'] });
-            quizId = newQuiz[0].id;
+            }], { transaction });
+
+            // Re-fetch the quiz to get its ID, as SQLite doesn't return it on bulkInsert
+            const newQuizRecord = await queryInterface.sequelize.query(
+               `SELECT id FROM Quizzes WHERE slug = :slug`,
+               { replacements: { slug: quizInfo.slug }, type: Sequelize.QueryTypes.SELECT, transaction }
+            );
+            quizId = newQuizRecord[0].id;
         }
 
         for (const q of questions) {

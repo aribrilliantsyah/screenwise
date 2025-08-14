@@ -167,9 +167,10 @@ export default function QuizClient({ quiz, user }: QuizClientProps) {
           quizId: quiz.id,
           score: scorePercentage,
           passed,
-          answers,
+          answers: answers, // Send the object directly
           submittedAt: new Date(),
       };
+      // @ts-ignore
       await saveAttempt(dbAttemptData);
 
     } catch (error) {
