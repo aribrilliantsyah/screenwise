@@ -1,13 +1,15 @@
+
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -15,52 +17,52 @@ model User {
   email        String   @unique
   passwordHash String
   name         String?
+  photo        String?
   address      String?
+  university   String?
   gender       String?
   whatsapp     String?
   phone        String?
-  photo        String? // Stores a data URI for the user's photo
-  university   String?
   isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
+  
   attempts QuizAttempt[]
 }
 
 model Quiz {
-  id               Int      @id @default(autoincrement())
-  slug             String   @unique
-  title            String
-  description      String
-  passingScore     Int
+  id             Int      @id @default(autoincrement())
+  slug           String   @unique
+  title          String
+  description    String
+  passingScore   Int
   timeLimitSeconds Int
-
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
   questions Question[]
   attempts  QuizAttempt[]
 }
 
 model Question {
   id            Int    @id @default(autoincrement())
-  quizId        Int
-  questionText  String
-  options       String // JSON stringified array
+  questionText  String @unique
+  options       String // JSON string of options
   correctAnswer String
-
-  quiz Quiz @relation(fields: [quizId], references: [id])
-
+  quiz          Quiz   @relation(fields: [quizId], references: [id])
+  quizId        Int
+  
   @@unique([quizId, questionText])
 }
 
 model QuizAttempt {
   id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
   userId      Int
+  quiz        Quiz     @relation(fields: [quizId], references: [id])
   quizId      Int
   score       Float
   passed      Boolean
-  answers     String   // JSON stringified answers object
+  answers     String   // JSON string of answers
   submittedAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-  quiz Quiz @relation(fields: [quizId], references: [id])
 }
