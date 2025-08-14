@@ -1,53 +1,51 @@
 
 'use server';
 
-import { PrismaClient } from '@prisma/client';
-import type { Quiz, Question, QuizAttempt, User } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Quiz, Question, QuizAttempt, User, sequelize } from '@/lib/db';
+import type { Quiz as QuizType, Question as QuestionType, QuizAttempt as QuizAttemptType, User as UserType } from '@/lib/db';
+import { Op } from 'sequelize';
 
 // Helper function to create a URL-friendly slug from a string
 const slugify = (text: string) => text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
 // This is the type we'll use on the client-side after parsing the JSON strings
-export type QuestionWithOptions = Omit<Question, 'options'> & { options: string[] };
-export type QuizWithQuestions = Quiz & { questions: QuestionWithOptions[] };
-export type AttemptWithAnswers = Omit<QuizAttempt, 'answers'> & { answers: Record<string, string> };
+export type QuestionWithOptions = QuestionType & { options: string[] };
+export type QuizWithQuestions = QuizType & { questions: QuestionWithOptions[] };
+export type AttemptWithAnswers = QuizAttemptType & { answers: Record<string, string> };
 
 
 // Helper to parse questions from DB format to client format
-const parseQuestions = (questions: Question[]): QuestionWithOptions[] => {
+const parseQuestions = (questions: QuestionType[]): QuestionWithOptions[] => {
     return questions.map(q => ({
         ...q,
         options: JSON.parse(q.options),
     }));
 };
 
+const parseQuiz = (quiz: Quiz): QuizWithQuestions => {
+    return {
+        ...quiz.get({ plain: true }),
+        questions: parseQuestions(quiz.questions || []),
+    };
+};
+
 export async function getQuizzes(): Promise<QuizWithQuestions[]> {
   try {
-    const quizzes = await prisma.quiz.findMany({
-      include: {
-        questions: true,
-      },
-      orderBy: {
-        title: 'asc'
-      }
+    const quizzes = await Quiz.findAll({
+      include: [{ model: Question, as: 'questions' }],
+      order: [['title', 'ASC']],
     });
-    // Parse the options string for each question
-    return quizzes.map(quiz => ({
-        ...quiz,
-        questions: parseQuestions(quiz.questions),
-    }));
+    return quizzes.map(parseQuiz);
   } catch (error) {
     console.error("Failed to fetch quizzes:", error);
     return [];
   }
 }
 
-export async function getAllUsers(): Promise<User[]> {
+export async function getAllUsers(): Promise<UserType[]> {
     try {
-        const users = await prisma.user.findMany();
-        return users;
+        const users = await User.findAll();
+        return users.map(u => u.get({ plain: true }));
     } catch(e) {
         console.error("Failed to fetch users:", e);
         return [];
@@ -57,174 +55,135 @@ export async function getAllUsers(): Promise<User[]> {
 
 export async function getQuizById(id: number): Promise<QuizWithQuestions | null> {
     try {
-      const quiz = await prisma.quiz.findUnique({
-        where: { id },
-        include: {
-          questions: true,
-        },
+      const quiz = await Quiz.findByPk(id, {
+        include: [{ model: Question, as: 'questions' }],
       });
       if (!quiz) return null;
-      return {
-          ...quiz,
-          questions: parseQuestions(quiz.questions),
-      };
+      return parseQuiz(quiz);
     } catch (error) {
       console.error(`Failed to fetch quiz with id ${id}:`, error);
       return null;
     }
 }
 
+export async function getQuizBySlug(slug: string): Promise<QuizWithQuestions | null> {
+    try {
+        const quiz = await Quiz.findOne({
+            where: { slug },
+            include: [{ model: Question, as: 'questions' }],
+        });
+        if (!quiz) return null;
+        return parseQuiz(quiz);
+    } catch (error) {
+        console.error(`Failed to fetch quiz with slug ${slug}:`, error);
+        return null;
+    }
+}
 
-export async function createQuiz(data: Omit<QuizWithQuestions, 'id' | 'questions'> & { questions: Omit<QuestionWithOptions, 'id' | 'quizId'>[] }): Promise<QuizWithQuestions | null> {
+
+export async function createQuiz(data: Omit<QuizWithQuestions, 'id' | 'questions' | 'slug'> & { questions: Omit<QuestionWithOptions, 'id' | 'quizId'>[] }): Promise<QuizWithQuestions | null> {
     const { title, description, passingScore, timeLimitSeconds, questions } = data;
     const slug = `${slugify(title)}-${Date.now()}`;
-
+    const t = await sequelize.transaction();
     try {
-        const newQuiz = await prisma.quiz.create({
-            data: {
-                title,
-                slug,
-                description,
-                passingScore,
-                timeLimitSeconds,
-                questions: {
-                    create: questions.map(q => ({
-                        questionText: q.questionText,
-                        options: JSON.stringify(q.options), // Stringify options
-                        correctAnswer: q.correctAnswer
-                    }))
-                }
-            },
-            include: {
-                questions: true
-            }
-        });
-        return {
-            ...newQuiz,
-            questions: parseQuestions(newQuiz.questions)
-        };
+        const newQuiz = await Quiz.create({
+            title,
+            slug,
+            description,
+            passingScore,
+            timeLimitSeconds,
+        }, { transaction: t });
+
+        const questionData = questions.map(q => ({
+            ...q,
+            quizId: newQuiz.id,
+            options: JSON.stringify(q.options),
+        }));
+
+        await Question.bulkCreate(questionData, { transaction: t });
+        
+        await t.commit();
+        
+        const result = await getQuizById(newQuiz.id);
+        return result;
+
     } catch (error) {
+        await t.rollback();
         console.error("Failed to create quiz:", error);
         return null;
     }
 }
 
-export async function updateQuiz(quizId: number, data: Omit<QuizWithQuestions, 'id'>): Promise<QuizWithQuestions | null> {
+export async function updateQuiz(quizId: number, data: Omit<QuizWithQuestions, 'id' | 'slug'>): Promise<QuizWithQuestions | null> {
     const { title, description, passingScore, timeLimitSeconds, questions } = data;
-    const slug = `${slugify(title)}-${quizId}`; // Keep original ID part for stability
+    const slug = `${slugify(title)}-${quizId}`;
+    const t = await sequelize.transaction();
 
     try {
-        const updatedQuiz = await prisma.$transaction(async (tx) => {
-            // 1. Update the quiz metadata
-            const quiz = await tx.quiz.update({
-                where: { id: quizId },
-                data: {
-                    title,
-                    slug,
-                    description,
-                    passingScore,
-                    timeLimitSeconds,
-                }
-            });
+        await Quiz.update({
+            title,
+            slug,
+            description,
+            passingScore,
+            timeLimitSeconds,
+        }, { where: { id: quizId }, transaction: t });
 
-            // 2. Get IDs of existing questions
-            const oldQuestions = await tx.question.findMany({
-                where: { quizId: quizId },
-                select: { id: true }
-            });
-            const oldQuestionIds = oldQuestions.map(q => q.id);
-
-
-            // 3. Separate new questions from existing questions to update
-            const questionsToCreate = questions.filter(q => !q.id);
-            const questionsToUpdate = questions.filter(q => q.id && oldQuestionIds.includes(q.id));
-            const questionToUpdateIds = questionsToUpdate.map(q=> q.id as number);
-
-            // 4. Delete questions that are no longer in the list
-            const questionsToDeleteIds = oldQuestionIds.filter(id => !questionToUpdateIds.includes(id));
-            if (questionsToDeleteIds.length > 0) {
-                await tx.question.deleteMany({
-                    where: { id: { in: questionsToDeleteIds } }
-                });
-            }
-            
-            // 5. Update existing questions
-            for (const q of questionsToUpdate) {
-                 await tx.question.update({
-                    where: { id: q.id },
-                    data: {
-                        questionText: q.questionText,
-                        options: JSON.stringify(q.options),
-                        correctAnswer: q.correctAnswer
-                    }
-                });
-            }
-
-            // 6. Create new questions
-            if(questionsToCreate.length > 0) {
-                await tx.question.createMany({
-                    data: questionsToCreate.map(q => ({
-                        quizId: quizId,
-                        questionText: q.questionText,
-                        options: JSON.stringify(q.options),
-                        correctAnswer: q.correctAnswer
-                    }))
-                });
-            }
-            
-            // 7. Fetch the final updated quiz with new questions
-            const finalQuiz = await tx.quiz.findUnique({
-                where: { id: quizId },
-                include: { questions: true }
-            });
-
-            if (!finalQuiz) {
-                throw new Error("Failed to fetch updated quiz.");
-            }
-
-            return {
-                ...finalQuiz,
-                questions: parseQuestions(finalQuiz.questions),
-            }
+        const questionIdsToKeep = questions.filter(q => q.id).map(q => q.id);
+        
+        await Question.destroy({
+            where: {
+                quizId: quizId,
+                id: { [Op.notIn]: questionIdsToKeep }
+            },
+            transaction: t
         });
 
-        return updatedQuiz;
+        for (const q of questions) {
+            const questionPayload = {
+                quizId: quizId,
+                questionText: q.questionText,
+                options: JSON.stringify(q.options),
+                correctAnswer: q.correctAnswer
+            };
+            if(q.id) {
+                await Question.update(questionPayload, { where: { id: q.id }, transaction: t });
+            } else {
+                await Question.create(questionPayload, { transaction: t });
+            }
+        }
+        
+        await t.commit();
+        return getQuizById(quizId);
+
     } catch (error) {
+        await t.rollback();
         console.error(`Failed to update quiz ${quizId}:`, error);
         return null;
     }
 }
 
 export async function deleteQuiz(quizId: number): Promise<boolean> {
+    const t = await sequelize.transaction();
     try {
-        // Transaction to delete quiz and its related questions and attempts
-        await prisma.$transaction(async (tx) => {
-            await tx.quizAttempt.deleteMany({
-                where: { quizId: quizId }
-            });
-            await tx.question.deleteMany({
-                where: { quizId: quizId }
-            });
-            await tx.quiz.delete({
-                where: { id: quizId }
-            });
-        });
+        await QuizAttempt.destroy({ where: { quizId: quizId }, transaction: t });
+        await Question.destroy({ where: { quizId: quizId }, transaction: t });
+        await Quiz.destroy({ where: { id: quizId }, transaction: t });
+        await t.commit();
         return true;
     } catch (error) {
+        await t.rollback();
         console.error(`Failed to delete quiz ${quizId}:`, error);
         return false;
     }
 }
 
-export async function saveAttempt(attemptData: Omit<QuizAttempt, 'id' | 'submittedAt' | 'answers'> & { answers: Record<string, string> }): Promise<QuizAttempt | null> {
+export async function saveAttempt(attemptData: Omit<QuizAttemptType, 'id' | 'submittedAt'> & { answers: Record<string, string> }): Promise<QuizAttemptType | null> {
     try {
-        const newAttempt = await prisma.quizAttempt.create({
-            data: {
-                ...attemptData,
-                answers: JSON.stringify(attemptData.answers), // Stringify answers object
-            }
+        const newAttempt = await QuizAttempt.create({
+            ...attemptData,
+            answers: JSON.stringify(attemptData.answers), // Stringify answers object
         });
-        return newAttempt;
+        return newAttempt.get({ plain: true });
     } catch (error) {
         console.error("Failed to save attempt:", error);
         return null;
@@ -256,38 +215,34 @@ export interface EnrichedAttempt {
 
 export async function getEnrichedAttempts(): Promise<EnrichedAttempt[]> {
     try {
-        const attempts = await prisma.quizAttempt.findMany({
-            include: {
-                user: {
-                    select: {
-                        name: true,
-                        email: true,
-                        phone: true,
-                        address: true,
-                        university: true,
-                        gender: true,
-                        whatsapp: true,
-                    }
+        const attempts = await QuizAttempt.findAll({
+            include: [
+                {
+                    model: User,
+                    as: 'user',
+                    attributes: ['name', 'email', 'phone', 'address', 'university', 'gender', 'whatsapp']
                 },
-                quiz: {
-                    select: {
-                        title: true
-                    }
+                {
+                    model: Quiz,
+                    as: 'quiz',
+                    attributes: ['title']
                 }
-            },
-            orderBy: {
-                submittedAt: 'desc'
-            }
+            ],
+            order: [['submittedAt', 'DESC']]
         });
 
         // Parse answers string for each attempt
-        return attempts.map(attempt => ({
-            ...attempt,
-            answers: JSON.parse(attempt.answers),
-        }));
+        return attempts.map(attempt => {
+            const plainAttempt = attempt.get({ plain: true });
+            return {
+                ...plainAttempt,
+                answers: JSON.parse(plainAttempt.answers),
+            } as EnrichedAttempt;
+        });
 
     } catch (error) {
         console.error("Failed to fetch attempts:", error);
         return [];
     }
 }
+

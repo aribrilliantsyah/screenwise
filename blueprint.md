@@ -7,12 +7,12 @@ Ini adalah aplikasi Next.js yang dibuat dengan Firebase Studio. Aplikasi ini mem
 - **Framework**: Next.js (App Router)
 - **Styling**: Tailwind CSS & ShadCN UI
 - **Database**: SQLite
-- **ORM**: Prisma
+- **ORM**: Sequelize
 - **AI**: Genkit
 
-## Model Data (Prisma)
+## Model Data (Sequelize)
 
-Skema database didefinisikan di `prisma/schema.prisma`.
+Model database didefinisikan di `src/lib/db.ts`.
 
 - `User`: Menyimpan data pengguna, termasuk kredensial (hash kata sandi) dan informasi profil.
 - `Quiz`: Menyimpan informasi tentang setiap kuis, seperti judul, deskripsi, dan skor kelulusan.
@@ -29,15 +29,15 @@ Untuk menjalankan aplikasi secara lokal:
     ```
 
 2.  **Siapkan Database**:
-    Jalankan migrasi Prisma untuk membuat file database SQLite dan menerapkan skema.
+    Jalankan migrasi Sequelize untuk membuat file database SQLite dan menerapkan skema.
     ```bash
-    npx prisma migrate dev --name init
+    npx sequelize-cli db:migrate
     ```
 
 3.  **(Opsional) Seed Database**:
     Untuk mengisi database dengan data contoh (kuis awal), jalankan perintah seed.
     ```bash
-    npx prisma db seed
+    npx sequelize-cli db:seed:all
     ```
 
 4.  **Jalankan Server Pengembangan**:

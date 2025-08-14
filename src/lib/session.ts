@@ -1,12 +1,10 @@
-// This file is new
+
 'use server';
 
 import 'server-only';
 import { cookies } from 'next/headers';
 import { SignJWT, jwtVerify } from 'jose';
-import type { User } from '@prisma/client';
-
-type SafeUser = Omit<User, 'passwordHash'>;
+import type { SafeUser } from '@/actions/user';
 
 const secretKey = process.env.SESSION_SECRET || 'fallback-secret-key-for-development';
 const key = new TextEncoder().encode(secretKey);

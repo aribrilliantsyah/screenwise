@@ -2,19 +2,19 @@
 'use server';
 
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
-import type { User as PrismaUser } from '@prisma/client';
+import { User } from '@/lib/db';
+import type { User as UserType } from '@/lib/db';
 import { createSession, deleteSession, getSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
+import { Op } from 'sequelize';
 
-const prisma = new PrismaClient();
 
-export type SignupData = Omit<PrismaUser, 'id' | 'createdAt' | 'updatedAt' | 'isAdmin' | 'passwordHash'> & { password?: string };
-export type User = Omit<PrismaUser, 'passwordHash'>;
+export type SignupData = Omit<UserType, 'id' | 'createdAt' | 'updatedAt' | 'isAdmin' | 'passwordHash'> & { password?: string };
+export type SafeUser = Omit<UserType, 'passwordHash'>;
 
 export async function signup(data: SignupData): Promise<{ error?: string }> {
     try {
-        const userExists = await prisma.user.findUnique({ where: { email: data.email }});
+        const userExists = await User.findOne({ where: { email: data.email }});
         if (userExists) {
             return { error: "Email sudah terdaftar." };
         }
@@ -26,22 +26,13 @@ export async function signup(data: SignupData): Promise<{ error?: string }> {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(data.password, salt);
 
-        const newUser = await prisma.user.create({
-            data: {
-                email: data.email,
-                passwordHash,
-                name: data.name,
-                address: data.address,
-                gender: data.gender,
-                whatsapp: data.whatsapp,
-                phone: data.phone,
-                photo: data.photo,
-                university: data.university,
-                isAdmin: false, // Explicitly set isAdmin to false for signup
-            }
+        const newUser = await User.create({
+            ...data,
+            passwordHash,
+            isAdmin: false, // Explicitly set isAdmin to false for signup
         });
-
-        const { passwordHash: _, ...userWithoutPassword } = newUser;
+        
+        const { passwordHash: _, ...userWithoutPassword } = newUser.get({ plain: true });
         await createSession(userWithoutPassword);
         
     } catch (e: any) {
@@ -53,9 +44,9 @@ export async function signup(data: SignupData): Promise<{ error?: string }> {
 
 export async function login(email: string, password: string): Promise<{ error?: string }> {
     try {
-        const user = await prisma.user.findUnique({ where: { email }});
+        const user = await User.findOne({ where: { email }});
         if (user && await bcrypt.compare(password, user.passwordHash)) {
-            const { passwordHash, ...userWithoutPassword } = user;
+            const { passwordHash, ...userWithoutPassword } = user.get({ plain: true });
             await createSession(userWithoutPassword);
         } else {
              return { error: "Email atau kata sandi salah." };
@@ -78,14 +69,16 @@ export async function logout() {
 }
 
 
-export async function updateUser(userId: number, data: Partial<Omit<User, 'id' | 'email' | 'isAdmin'>>): Promise<{ user: User | null, error?: string }> {
+export async function updateUser(userId: number, data: Partial<Omit<SafeUser, 'id' | 'email' | 'isAdmin'>>): Promise<{ user: SafeUser | null, error?: string }> {
     try {
-        const updatedUser = await prisma.user.update({
-            where: { id: userId },
-            data: data,
-        });
+        await User.update(data, { where: { id: userId } });
+        const updatedUser = await User.findByPk(userId);
 
-        const { passwordHash, ...userWithoutPassword } = updatedUser;
+        if (!updatedUser) {
+            throw new Error("User not found after update.");
+        }
+
+        const { passwordHash, ...userWithoutPassword } = updatedUser.get({ plain: true });
         // Re-create session with updated user data
         await createSession(userWithoutPassword);
         return { user: userWithoutPassword };
@@ -97,7 +90,7 @@ export async function updateUser(userId: number, data: Partial<Omit<User, 'id' |
 
 export async function changePassword(userId: number, oldPassword: string, newPassword: string): Promise<{ success: boolean, error?: string }> {
     try {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
+        const user = await User.findByPk(userId);
         if (!user) {
             return { success: false, error: "Pengguna tidak ditemukan." };
         }
@@ -110,10 +103,8 @@ export async function changePassword(userId: number, oldPassword: string, newPas
         const salt = await bcrypt.genSalt(10);
         const newPasswordHash = await bcrypt.hash(newPassword, salt);
         
-        await prisma.user.update({
-            where: { id: userId },
-            data: { passwordHash: newPasswordHash }
-        });
+        await User.update({ passwordHash: newPasswordHash }, { where: { id: userId }});
+        
         return { success: true };
     } catch(e: any) {
         return { success: false, error: e.message || "Terjadi kesalahan saat mengubah kata sandi." };
@@ -122,10 +113,10 @@ export async function changePassword(userId: number, oldPassword: string, newPas
 
 export async function getAllUniversities(): Promise<string[]> {
     try {
-        const users = await prisma.user.findMany({
-            where: { university: { not: null } },
-            select: { university: true },
-            distinct: ['university']
+        const users = await User.findAll({
+            attributes: ['university'],
+            where: { university: { [Op.ne]: null } },
+            group: ['university']
         });
         // @ts-ignore
         return users.map(u => u.university).filter(Boolean);

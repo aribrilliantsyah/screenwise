@@ -10,11 +10,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Timer } from "lucide-react";
-import type { User } from "@prisma/client";
+import type { SafeUser } from "@/actions/user";
 
 interface QuizClientProps {
     quiz: QuizWithQuestions;
-    user: Omit<User, 'passwordHash'>;
+    user: SafeUser;
 }
 
 interface ActiveQuizSession {
@@ -168,6 +168,7 @@ export default function QuizClient({ quiz, user }: QuizClientProps) {
           score: scorePercentage,
           passed,
           answers,
+          submittedAt: new Date(),
       };
       await saveAttempt(dbAttemptData);
 

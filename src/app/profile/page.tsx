@@ -21,7 +21,7 @@ import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox } from "@/components/combobox";
 import { getAllUniversities, updateUser, changePassword } from "@/actions/user";
-import type { User } from '@/actions/user';
+import type { SafeUser } from '@/actions/user';
 import { useSession } from "@/contexts/session-context";
 
 
@@ -119,7 +119,7 @@ export default function ProfilePage() {
         if(!user) return;
         setProfileLoading(true);
         try {
-            const { user: updatedUser, error } = await updateUser(user.id, values as Partial<User>);
+            const { user: updatedUser, error } = await updateUser(user.id, values as Partial<SafeUser>);
             if (updatedUser) {
                 // The session provider will automatically update the session state upon re-render or navigation
                 toast({

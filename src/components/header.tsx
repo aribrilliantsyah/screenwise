@@ -30,7 +30,7 @@ export function Header() {
     return isAdmin ? "/admin" : "/dashboard";
   }
 
-  const getInitials = (name: string | null) => {
+  const getInitials = (name: string | null | undefined) => {
     if (!name) return "P";
     const names = name.split(' ');
     if (names.length > 1) {

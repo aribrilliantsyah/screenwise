@@ -5,26 +5,26 @@ import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import QuizClient from "@/components/quiz/quiz-client";
 import { Loader2 } from "lucide-react";
-import { getQuizzes, type QuizWithQuestions } from "@/actions/quiz";
+import { getQuizBySlug, type QuizWithQuestions } from "@/actions/quiz";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/session";
-import type { User } from "@prisma/client";
+import type { SafeUser } from "@/actions/user";
 
 export default function DynamicQuizPage() {
   const router = useRouter();
   const params = useParams();
-  const [user, setUser] = useState<Omit<User, 'passwordHash'> | null>(null);
+  const [user, setUser] = useState<SafeUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  const [allQuizzes, setAllQuizzes] = useState<QuizWithQuestions[]>([]);
-  const [loadingQuizzes, setLoadingQuizzes] = useState(true);
+  const [quiz, setQuiz] = useState<QuizWithQuestions | null>(null);
+  const [loadingQuiz, setLoadingQuiz] = useState(true);
   
   const quizSlug = useMemo(() => Array.isArray(params.id) ? params.id[0] : params.id, [params.id]);
   
   useEffect(() => {
     async function loadInitialData() {
         setAuthLoading(true);
-        setLoadingQuizzes(true);
+        setLoadingQuiz(true);
 
         const session = await getSession();
         if (!session) {
@@ -34,19 +34,14 @@ export default function DynamicQuizPage() {
         setUser(session.user);
         setAuthLoading(false);
 
-        const quizzes = await getQuizzes();
-        setAllQuizzes(quizzes);
-        setLoadingQuizzes(false);
+        const quizData = await getQuizBySlug(quizSlug);
+        setQuiz(quizData);
+        setLoadingQuiz(false);
     }
     loadInitialData();
-  }, [router]);
+  }, [router, quizSlug]);
   
-  const quiz = useMemo(() => {
-    if (loadingQuizzes) return null;
-    return allQuizzes.find(q => q.slug === quizSlug);
-  }, [quizSlug, allQuizzes, loadingQuizzes]);
-
-  if (authLoading || loadingQuizzes) {
+  if (authLoading || loadingQuiz) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />

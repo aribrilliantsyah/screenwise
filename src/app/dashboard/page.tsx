@@ -8,8 +8,7 @@ import { Loader2, PlayCircle, BarChart2, HelpCircle, Clock, Award, LucideRedo, C
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { getSession } from "@/lib/session";
-import type { User } from "@prisma/client";
+import { useSession } from "@/contexts/session-context";
 
 interface AttemptStatus {
   [quizId: number]: {
@@ -28,8 +27,8 @@ interface ActiveQuizSession {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<Omit<User, 'passwordHash'> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { session, loading } = useSession();
+  const user = session?.user;
 
   const [allQuizzes, setAllQuizzes] = useState<QuizWithQuestions[]>([]);
   const [attemptStatus, setAttemptStatus] = useState<AttemptStatus>({});
@@ -39,18 +38,16 @@ export default function DashboardPage() {
   
   useEffect(() => {
     const fetchSessionAndData = async () => {
-        const session = await getSession();
-        if (!session) {
+        if (loading) return; // Wait for session to be loaded
+        if (!user) {
             router.push("/login");
             return;
         }
-        if (session.user.isAdmin) {
+        if (user.isAdmin) {
             router.push("/admin");
             return;
         }
-        setUser(session.user);
-        setLoading(false);
-
+    
         // Load quizzes and attempt history
         setIsLoadingData(true);
         const quizzes = await getQuizzes();
@@ -58,7 +55,7 @@ export default function DashboardPage() {
 
         const status: AttemptStatus = {};
         quizzes.forEach(quiz => {
-            const attemptRaw = localStorage.getItem(`quiz_attempt_${session.user.email}_${quiz.id}`);
+            const attemptRaw = localStorage.getItem(`quiz_attempt_${user.email}_${quiz.id}`);
             if (attemptRaw) {
                 const attempt = JSON.parse(attemptRaw);
                 status[quiz.id] = { passed: attempt.passed, score: attempt.score };
@@ -69,7 +66,7 @@ export default function DashboardPage() {
         setAttemptStatus(status);
 
         // Load active session
-        const activeSessionRaw = localStorage.getItem(`active_quiz_session_${session.user.email}`);
+        const activeSessionRaw = localStorage.getItem(`active_quiz_session_${user.email}`);
         if (activeSessionRaw) {
             setActiveSession(JSON.parse(activeSessionRaw));
         }
@@ -77,7 +74,7 @@ export default function DashboardPage() {
     };
     
     fetchSessionAndData();
-  }, [router]);
+  }, [router, user, loading]);
 
 
   const handleNavigation = (quizId: number, path: string) => {
@@ -85,7 +82,7 @@ export default function DashboardPage() {
     router.push(path);
   };
 
-  if (loading || !user || isLoadingData) {
+  if (loading || isLoadingData || !user) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />

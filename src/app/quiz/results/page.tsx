@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { analyzeQuizPerformance, type AnalyzeQuizPerformanceOutput } from "@/ai/flows/analyze-quiz-performance";
 import { getQuizById, type QuizWithQuestions, type QuestionWithOptions } from "@/actions/quiz";
@@ -10,9 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, BrainCircuit, Lightbulb, CheckCircle, XCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getSession } from "@/lib/session";
+import { useSession } from "@/contexts/session-context";
 import { MOCK_SUBMISSIONS } from "@/data/quiz-data";
-import type { User } from "@prisma/client";
+import type { SafeUser } from "@/actions/user";
 
 interface Attempt {
   answers: Record<string, string>;
@@ -25,8 +25,8 @@ interface Attempt {
 function ResultsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [user, setUser] = useState<Omit<User, 'passwordHash'> | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { session, loading: authLoading } = useSession();
+  const user = session?.user;
 
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [analysis, setAnalysis] = useState<AnalyzeQuizPerformanceOutput | null>(null);
@@ -39,14 +39,13 @@ function ResultsContent() {
 
   useEffect(() => {
     async function loadData() {
+      if(authLoading) return;
       setLoading(true);
-      const session = await getSession();
-      if (!session) {
+
+      if (!user) {
         router.push('/login');
         return;
       }
-      setUser(session.user);
-      setAuthLoading(false);
 
       if (!quizId) {
         router.push('/dashboard');
@@ -56,11 +55,11 @@ function ResultsContent() {
       const quizData = await getQuizById(Number(quizId));
       if (quizData) {
         setQuiz(quizData);
-        const storedAttempt = localStorage.getItem(`quiz_attempt_${session.user.email}_${quizData.id}`);
+        const storedAttempt = localStorage.getItem(`quiz_attempt_${user.email}_${quizData.id}`);
         if (storedAttempt) {
           const parsedAttempt = JSON.parse(storedAttempt);
           setAttempt(parsedAttempt);
-          fetchAnalysis(parsedAttempt, session.user.email, quizData);
+          fetchAnalysis(parsedAttempt, user.email, quizData);
         } else {
           router.push(`/dashboard`);
         }
@@ -70,7 +69,7 @@ function ResultsContent() {
       setLoading(false);
     }
     loadData();
-  }, [quizId, router]);
+  }, [quizId, router, user, authLoading]);
 
 
   const fetchAnalysis = async (userAttempt: Attempt, currentUserId: string, currentQuiz: QuizWithQuestions) => {
