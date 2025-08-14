@@ -27,9 +27,9 @@ export default function DynamicQuizPage() {
   }, []);
   
   const quiz = useMemo(() => {
-    // This will only run after allQuizzes has been populated
+    if (loadingQuizzes) return null; // Jangan mencari sampai data siap
     return allQuizzes.find(q => q.id === quizId);
-  }, [quizId, allQuizzes]);
+  }, [quizId, allQuizzes, loadingQuizzes]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -43,43 +43,42 @@ export default function DynamicQuizPage() {
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
       </div>
     );
-  }
+  } else {
+    // Hanya periksa setelah semua pemuatan selesai
+    if (!quiz) {
+      return (
+          <div className="flex flex-col h-[calc(100vh-4rem)] items-center justify-center gap-4">
+              <h1 className="text-2xl font-bold">Kuis tidak ditemukan</h1>
+              <p>Kuis yang Anda cari tidak ada atau telah dihapus.</p>
+              <Button onClick={() => router.push('/dashboard')}>Kembali ke Dasbor</Button>
+          </div>
+      );
+    }
 
-  // After loading is finished, check for user and quiz
-  if (!user) {
-    // This case should be covered by the useEffect redirect, but as a safeguard
-    return (
-      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-      </div>
-    )
-  }
-
-  if (!quiz) {
-    return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] items-center justify-center gap-4">
-            <h1 className="text-2xl font-bold">Kuis tidak ditemukan</h1>
-            <p>Kuis yang Anda cari tidak ada atau telah dihapus.</p>
-            <Button onClick={() => router.push('/dashboard')}>Kembali ke Dasbor</Button>
+    if (!user) {
+      // Safeguard jika redirect belum selesai
+      return (
+        <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+          <Loader2 className="h-16 w-16 animate-spin text-primary" />
         </div>
-    );
-  }
-
-  // Cek apakah pengguna saat ini sudah pernah mencoba kuis ini
-  const attemptKey = `quiz_attempt_${user.email}_${quiz.id}`;
-  const attempt = typeof window !== 'undefined' ? localStorage.getItem(attemptKey) : null;
+      );
+    }
   
-  if (attempt) {
-    // Jika sudah pernah mencoba, arahkan kembali ke dasbor.
-    // Tombol di dasbor akan mengarah ke hasil.
-    router.push('/dashboard');
-    return (
-       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-        <p>Anda sudah mengerjakan kuis ini. Mengarahkan kembali ke dasbor...</p>
-        <Loader2 className="h-16 w-16 animate-spin text-primary ml-4" />
-      </div>
-    );
+    // Cek apakah pengguna saat ini sudah pernah mencoba kuis ini
+    const attemptKey = `quiz_attempt_${user.email}_${quiz.id}`;
+    const attempt = typeof window !== 'undefined' ? localStorage.getItem(attemptKey) : null;
+    
+    if (attempt) {
+      // Jika sudah pernah mencoba, arahkan kembali ke dasbor.
+      router.push('/dashboard');
+      return (
+         <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+          <p>Anda sudah mengerjakan kuis ini. Mengarahkan kembali ke dasbor...</p>
+          <Loader2 className="h-16 w-16 animate-spin text-primary ml-4" />
+        </div>
+      );
+    }
+  
+    return <QuizClient quiz={quiz} />;
   }
-
-  return <QuizClient quiz={quiz} />;
 }
