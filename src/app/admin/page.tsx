@@ -361,7 +361,7 @@ export default function AdminPage() {
             const allQuizzes = getQuizGroups();
             const quizTitleMap = new Map(allQuizzes.map(q => [q.id, q.title]));
             const allUsersRaw = localStorage.getItem('screenwise_users');
-            const allUsers: User[] = allUsersRaw ? JSON.parse(allUsersRaw) : [];
+            const allUsers: (User & {password: string})[] = allUsersRaw ? JSON.parse(allUsersRaw) : [];
             const userDetailsMap = new Map(allUsers.map(u => [u.email, u]));
 
             const dataToExport = filteredAttempts.map(attempt => {
@@ -752,3 +752,5 @@ export default function AdminPage() {
         </div>
     )
 }
+
+    
