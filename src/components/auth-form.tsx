@@ -97,10 +97,12 @@ export function AuthForm({ variant }: AuthFormProps) {
 
 
   const handleNext = async () => {
+    setLoading(true);
     const isValid = await form.trigger(["name", "address", "gender", "whatsapp", "phone", "photo", "university"]);
     if(isValid) {
         setStep(2);
     }
+    setLoading(false);
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,6 +270,7 @@ export function AuthForm({ variant }: AuthFormProps) {
                         <Combobox
                             options={universityOptions}
                             {...field}
+                            value={field.value}
                             onChange={(value) => form.setValue("university", value)}
                             placeholder="Pilih atau ketik universitas"
                             searchPlaceholder="Cari universitas..."
@@ -382,13 +385,14 @@ export function AuthForm({ variant }: AuthFormProps) {
         
         <div className="flex gap-2">
             {step === 2 && (
-                <Button type="button" variant="outline" onClick={() => setStep(1)} className="w-full">
+                <Button type="button" variant="outline" onClick={() => setStep(1)} className="w-full" disabled={loading}>
                     Kembali
                 </Button>
             )}
 
             {step === 1 && (
-                 <Button type="button" onClick={handleNext} className="w-full">
+                 <Button type="button" onClick={handleNext} className="w-full" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Selanjutnya
                 </Button>
             )}
@@ -404,3 +408,5 @@ export function AuthForm({ variant }: AuthFormProps) {
     </Form>
   );
 }
+
+    
