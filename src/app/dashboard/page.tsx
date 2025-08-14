@@ -100,12 +100,12 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2"><List /> Kuis Tersedia</h2>
           {availableQuizzes.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {availableQuizzes.map(quiz => {
+              {availableQuizzes.map((quiz, index) => {
                   const isActiveQuiz = isQuizActive && activeSession.quizId === quiz.id;
                   const canStartQuiz = !isQuizActive || isActiveQuiz;
 
                   return (
-                    <Card key={quiz.id} className={`flex flex-col transition-shadow duration-300 ${!canStartQuiz ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'}`}>
+                    <Card key={`${quiz.id}-${index}`} className={`flex flex-col transition-shadow duration-300 ${!canStartQuiz ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'}`}>
                       <CardHeader>
                         <CardTitle className="text-xl font-bold">{quiz.title}</CardTitle>
                         <CardDescription className="mt-1">{quiz.description}</CardDescription>
@@ -157,10 +157,10 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2"><ClipboardList /> Riwayat Kuis</h2>
           {attemptedQuizzes.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {attemptedQuizzes.map(quiz => {
+            {attemptedQuizzes.map((quiz, index) => {
               const status = attemptStatus[quiz.id];
               return (
-                <Card key={quiz.id} className="flex flex-col transition-shadow duration-300 hover:shadow-lg">
+                <Card key={`${quiz.id}-${index}`} className="flex flex-col transition-shadow duration-300 hover:shadow-lg">
                   <CardHeader>
                       <CardTitle className="text-xl font-bold">{quiz.title}</CardTitle>
                       <CardDescription className="mt-1">{quiz.description}</CardDescription>
