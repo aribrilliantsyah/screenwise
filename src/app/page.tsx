@@ -40,37 +40,30 @@ export default function Home() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Fitur</CardTitle>
-            <CardDescription>Apa yang membuat platform kuis kami unik.</CardDescription>
+            <CardTitle>Kuis Mudah & Cepat</CardTitle>
+            <CardDescription>Ringkasan singkat tentang platform kami.</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-4">
               <li className="flex items-start">
                 <CheckCircle className="mr-3 mt-1 h-5 w-5 text-primary" />
                 <div>
-                  <h3 className="font-semibold">Kuis Interaktif</h3>
-                  <p className="text-sm text-muted-foreground">Soal pilihan ganda yang menarik untuk berbagai topik.</p>
+                  <h3 className="font-semibold">Proses Sederhana</h3>
+                  <p className="text-sm text-muted-foreground">Cukup daftar, masuk, dan Anda bisa langsung memulai kuis yang tersedia.</p>
                 </div>
               </li>
               <li className="flex items-start">
                 <CheckCircle className="mr-3 mt-1 h-5 w-5 text-primary" />
                 <div>
-                  <h3 className="font-semibold">Penilaian Instan</h3>
-                  <p className="text-sm text-muted-foreground">Dapatkan hasil dan status lulus/gagal Anda secara langsung.</p>
+                  <h3 className="font-semibold">Penilaian Langsung</h3>
+                  <p className="text-sm text-muted-foreground">Setelah selesai, skor dan status kelulusan Anda akan langsung ditampilkan.</p>
                 </div>
               </li>
               <li className="flex items-start">
                 <CheckCircle className="mr-3 mt-1 h-5 w-5 text-primary" />
                 <div>
-                  <h3 className="font-semibold">Analisis Berbasis AI</h3>
-                  <p className="text-sm text-muted-foreground">Temukan pola kinerja dengan wawasan GenAI.</p>
-                </div>
-              </li>
-               <li className="flex items-start">
-                <CheckCircle className="mr-3 mt-1 h-5 w-5 text-primary" />
-                <div>
-                  <h3 className="font-semibold">Manajemen Admin</h3>
-                  <p className="text-sm text-muted-foreground">Admin dapat membuat kuis baru, mengatur skor kelulusan, dan memantau peserta.</p>
+                  <h3 className="font-semibold">Wawasan Cerdas</h3>
+                  <p className="text-sm text-muted-foreground">Dapatkan analisis dari AI untuk melihat bagaimana Anda bisa lebih baik lagi.</p>
                 </div>
               </li>
             </ul>
