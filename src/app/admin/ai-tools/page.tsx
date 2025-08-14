@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useAuth } from "@/contexts/auth-context";
+import { useSession } from "@/contexts/session-context";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +25,7 @@ const quizGenerationSchema = z.object({
 type QuizGenerationFormData = z.infer<typeof quizGenerationSchema>;
 
 export default function AiToolsPage() {
-    const { isAdmin, loading: authLoading } = useAuth();
+    const { session, loading: authLoading } = useSession();
     const router = useRouter();
     const { toast } = useToast();
 
@@ -91,9 +91,18 @@ export default function AiToolsPage() {
         }
     }
     
-    if (authLoading || !isAdmin) {
+    if (authLoading) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+                <Loader2 className="h-16 w-16 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!session || !session.user.isAdmin) {
+        router.push('/login');
+        return (
+             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
             </div>
         );
