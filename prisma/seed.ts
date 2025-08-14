@@ -89,13 +89,24 @@ async function main() {
     });
 
     for (const q of questions) {
-      await prisma.question.create({
-        data: {
-          quizId: quiz.id,
-          questionText: q.questionText,
-          options: q.options,
-          correctAnswer: q.correctAnswer,
-        },
+      // Upsert question based on question text and quizId
+      await prisma.question.upsert({
+          where: {
+              quizId_questionText: {
+                  quizId: quiz.id,
+                  questionText: q.questionText,
+              }
+          },
+          update: {
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+          },
+          create: {
+              quizId: quiz.id,
+              questionText: q.questionText,
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+          }
       });
     }
     console.log(`Seeded quiz: ${quiz.title}`);
