@@ -10,6 +10,7 @@
 - Timer Display: Display a timer during the quiz (optional).
 - Performance Analysis: AI tool will examine the submitted quiz to provide insight on which answer patterns correlate most strongly with high performance later.
 
+
 ## Style Guidelines:
 
 - Primary color: Soft green (#A7D1AB) to evoke a sense of calm and focus.

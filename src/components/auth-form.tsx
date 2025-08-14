@@ -68,7 +68,7 @@ export function AuthForm({ variant }: AuthFormProps) {
   const [universityOptions, setUniversityOptions] = useState<{ value: string; label: string }[]>([]);
 
   const currentValidationSchema = variant === 'signup' 
-      ? (step === 1 ? step1Schema : signupSchema) // Validasi semua field saat di step 2
+      ? (step === 1 ? step1Schema : signupSchema)
       : loginSchema;
 
   const form = useForm({
