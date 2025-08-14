@@ -383,7 +383,7 @@ export default function AdminPage() {
         const newOptions = [...question.options];
         newOptions.splice(optionIndex, 1);
         
-        const currentCorrectAnswer = form.getValues(`questions.${index}.correctAnswer`);
+        const currentCorrectAnswer = form.getValues(`questions.${questionIndex}.correctAnswer`);
         const deletedOptionValue = question.options[optionIndex];
 
         update(questionIndex, {
@@ -709,5 +709,3 @@ export default function AdminPage() {
         </div>
     )
 }
-
-    
