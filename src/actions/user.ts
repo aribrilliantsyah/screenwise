@@ -53,8 +53,8 @@ export async function signup(data: SignupData): Promise<{ error?: string }> {
 export async function login(email: string, password: string): Promise<{ error?: string }> {
     try {
         const user = await User.findOne({ where: { email }});
-        // First, check if user exists. If not, fail.
-        if (!user) {
+        // First, check if user exists and has a password hash.
+        if (!user || !user.passwordHash) {
             return { error: "Email atau kata sandi salah." };
         }
 
@@ -110,8 +110,8 @@ export async function updateUser(userId: number, data: Partial<Omit<SafeUser, 'i
 export async function changePassword(userId: number, oldPassword: string, newPassword: string): Promise<{ success: boolean, error?: string }> {
     try {
         const user = await User.findByPk(userId);
-        if (!user) {
-            return { success: false, error: "Pengguna tidak ditemukan." };
+        if (!user || !user.passwordHash) {
+            return { success: false, error: "Pengguna tidak ditemukan atau data tidak valid." };
         }
         
         const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);

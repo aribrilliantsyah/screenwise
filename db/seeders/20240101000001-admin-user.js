@@ -19,7 +19,7 @@ module.exports = {
     if (users.length === 0) {
       await queryInterface.bulkInsert('Users', [{
         email: adminEmail,
-        passwordHash: passwordHash,
+        passwordHash: passwordHash, // Corrected typo from paswordHash
         name: 'Admin',
         isAdmin: true,
         address: 'Kantor Pusat',
