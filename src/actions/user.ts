@@ -26,7 +26,6 @@ export async function signup(data: SignupData): Promise<{ error?: string }> {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(data.password, salt);
         
-        // Pastikan semua data dari form signup ikut disimpan
         const newUser = await User.create({
             email: data.email,
             passwordHash,
@@ -47,24 +46,22 @@ export async function signup(data: SignupData): Promise<{ error?: string }> {
         console.error("Signup error:", e);
         return { error: e.message || "Terjadi kesalahan saat pendaftaran." };
     }
+    // Redirect after successful signup
     redirect('/dashboard');
 }
 
 export async function login(email: string, password: string): Promise<{ error?: string }> {
     try {
         const user = await User.findOne({ where: { email }});
-        // First, check if user exists and has a password hash.
         if (!user || !user.passwordHash) {
             return { error: "Email atau kata sandi salah." };
         }
 
-        // Only if user exists, compare password.
         const isMatch = await bcrypt.compare(password, user.passwordHash);
         if (!isMatch) {
             return { error: "Email atau kata sandi salah." };
         }
         
-        // If password matches, create session.
         const { passwordHash, ...userWithoutPassword } = user.get({ plain: true });
         await createSession(userWithoutPassword);
 
@@ -75,7 +72,7 @@ export async function login(email: string, password: string): Promise<{ error?: 
     
     // Redirect after successful login
     const session = await getSession();
-    if(session?.user.isAdmin){
+    if (session?.user.isAdmin) {
         redirect('/admin');
     } else {
         redirect('/dashboard');
