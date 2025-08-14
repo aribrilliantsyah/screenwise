@@ -137,3 +137,5 @@ export async function getAllUniversities(): Promise<string[]> {
         return [];
     }
 }
+
+    
