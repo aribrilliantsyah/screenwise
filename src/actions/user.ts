@@ -45,16 +45,27 @@ export async function signup(data: SignupData): Promise<{ error?: string }> {
 export async function login(email: string, password: string): Promise<{ error?: string }> {
     try {
         const user = await User.findOne({ where: { email }});
-        if (user && await bcrypt.compare(password, user.passwordHash)) {
-            const { passwordHash, ...userWithoutPassword } = user.get({ plain: true });
-            await createSession(userWithoutPassword);
-        } else {
-             return { error: "Email atau kata sandi salah." };
+        // First, check if user exists. If not, fail.
+        if (!user) {
+            return { error: "Email atau kata sandi salah." };
         }
+
+        // Only if user exists, compare password.
+        const isMatch = await bcrypt.compare(password, user.passwordHash);
+        if (!isMatch) {
+            return { error: "Email atau kata sandi salah." };
+        }
+        
+        // If password matches, create session.
+        const { passwordHash, ...userWithoutPassword } = user.get({ plain: true });
+        await createSession(userWithoutPassword);
+
     } catch (e: any) {
         console.error("Login error:", e);
         return { error: e.message || "Terjadi kesalahan saat login." };
     }
+    
+    // Redirect after successful login
     const session = await getSession();
     if(session?.user.isAdmin){
         redirect('/admin');
