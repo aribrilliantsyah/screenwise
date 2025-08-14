@@ -21,12 +21,13 @@ import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { localAuth } from "@/lib/auth";
+import { Combobox } from "@/components/combobox";
 
 // Skema untuk pembaruan profil
 const profileSchema = z.object({
   name: z.string().min(1, { message: "Nama lengkap harus diisi." }),
   address: z.string().min(1, { message: "Alamat harus diisi." }),
-  company: z.string().optional(),
+  university: z.string().optional(),
   whatsapp: z.string().min(10, { message: "Nomor WhatsApp tidak valid." }),
   phone: z.string().min(10, { message: "Nomor HP tidak valid." }),
 });
@@ -48,13 +49,14 @@ export default function ProfilePage() {
     const { toast } = useToast();
     const [profileLoading, setProfileLoading] = useState(false);
     const [passwordLoading, setPasswordLoading] = useState(false);
+    const [universityOptions, setUniversityOptions] = useState<{ value: string; label: string }[]>([]);
 
     const profileForm = useForm<z.infer<typeof profileSchema>>({
         resolver: zodResolver(profileSchema),
         defaultValues: {
             name: user?.name || "",
             address: user?.address || "",
-            company: user?.company || "",
+            university: user?.university || "",
             whatsapp: user?.whatsapp || "",
             phone: user?.phone || "",
         },
@@ -69,13 +71,18 @@ export default function ProfilePage() {
         },
     });
 
+    useEffect(() => {
+        const storedUniversities = localAuth.getAllUniversities();
+        setUniversityOptions(storedUniversities.map(u => ({ value: u, label: u })));
+    }, []);
+
     // Efek untuk mereset form jika user berubah (misal setelah login)
     useEffect(() => {
         if(user) {
             profileForm.reset({
                 name: user.name || "",
                 address: user.address || "",
-                company: user.company || "",
+                university: user.university || "",
                 whatsapp: user.whatsapp || "",
                 phone: user.phone || "",
             });
@@ -187,13 +194,19 @@ export default function ProfilePage() {
                                 />
                                 <FormField
                                     control={profileForm.control}
-                                    name="company"
+                                    name="university"
                                     render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Asal Perusahaan (Opsional)</FormLabel>
-                                        <FormControl>
-                                        <Input placeholder="PT Teknologi Maju" {...field} value={field.value ?? ''} />
-                                        </FormControl>
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel>Asal Universitas (Opsional)</FormLabel>
+                                        <Combobox
+                                            options={universityOptions}
+                                            {...field}
+                                            value={field.value || ""}
+                                            onChange={(value) => profileForm.setValue("university", value)}
+                                            placeholder="Pilih atau ketik universitas"
+                                            searchPlaceholder="Cari universitas..."
+                                            notFoundMessage="Universitas tidak ditemukan."
+                                        />
                                         <FormMessage />
                                     </FormItem>
                                     )}

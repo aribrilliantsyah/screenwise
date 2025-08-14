@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -21,12 +21,14 @@ import { Loader2, User as UserIcon, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Combobox } from "./combobox";
+import { localAuth } from "@/lib/auth";
 
 // Skema untuk langkah 1: Data Diri
 const step1Schema = z.object({
   name: z.string().min(1, { message: "Nama lengkap harus diisi." }),
   address: z.string().min(1, { message: "Alamat harus diisi." }),
-  company: z.string().optional(),
+  university: z.string().optional(),
   gender: z.enum(["Laki-laki", "Perempuan"], { required_error: "Jenis kelamin harus dipilih." }),
   whatsapp: z.string().min(10, { message: "Nomor WhatsApp tidak valid." }),
   phone: z.string().min(10, { message: "Nomor HP tidak valid." }),
@@ -63,7 +65,8 @@ export function AuthForm({ variant }: AuthFormProps) {
   const { login, signup } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  
+  const [universityOptions, setUniversityOptions] = useState<{ value: string; label: string }[]>([]);
+
   const currentValidationSchema = variant === 'signup' 
       ? (step === 1 ? step1Schema : step2Schema) 
       : loginSchema;
@@ -77,7 +80,7 @@ export function AuthForm({ variant }: AuthFormProps) {
       confirmPassword: "",
       name: "",
       address: "",
-      company: "",
+      university: "",
       gender: undefined,
       whatsapp: "",
       phone: "",
@@ -85,8 +88,16 @@ export function AuthForm({ variant }: AuthFormProps) {
     },
   });
 
+  useEffect(() => {
+    if (variant === 'signup') {
+        const storedUniversities = localAuth.getAllUniversities();
+        setUniversityOptions(storedUniversities.map(u => ({ value: u, label: u })));
+    }
+  }, [variant]);
+
+
   const handleNext = async () => {
-    const isValid = await form.trigger(["name", "address", "company", "gender", "whatsapp", "phone", "photo"]);
+    const isValid = await form.trigger(["name", "address", "gender", "whatsapp", "phone", "photo", "university"]);
     if(isValid) {
         setStep(2);
     }
@@ -250,13 +261,18 @@ export function AuthForm({ variant }: AuthFormProps) {
                 />
                 <FormField
                     control={form.control}
-                    name="company"
+                    name="university"
                     render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Asal Perusahaan (Opsional)</FormLabel>
-                        <FormControl>
-                        <Input placeholder="PT Teknologi Maju" {...field} />
-                        </FormControl>
+                    <FormItem className="flex flex-col">
+                        <FormLabel>Asal Universitas (Opsional)</FormLabel>
+                        <Combobox
+                            options={universityOptions}
+                            {...field}
+                            onChange={(value) => form.setValue("university", value)}
+                            placeholder="Pilih atau ketik universitas"
+                            searchPlaceholder="Cari universitas..."
+                            notFoundMessage="Universitas tidak ditemukan."
+                        />
                         <FormMessage />
                     </FormItem>
                     )}

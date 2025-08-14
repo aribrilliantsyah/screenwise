@@ -6,7 +6,7 @@ export interface User {
   email: string;
   name: string;
   address: string;
-  company?: string;
+  university?: string;
   gender: "Laki-laki" | "Perempuan";
   whatsapp: string;
   phone: string;
@@ -127,5 +127,13 @@ export const localAuth = {
       users[userIndex].password = newPassword;
       setStoredUsers(users);
       return true;
+  },
+  
+  getAllUniversities: (): string[] => {
+    const users = getStoredUsers();
+    const universities = users
+        .map(user => user.university)
+        .filter((university): university is string => !!university); // Filter out undefined/empty values
+    return [...new Set(universities)]; // Return unique university names
   }
 };
