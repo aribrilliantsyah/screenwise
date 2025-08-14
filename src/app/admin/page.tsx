@@ -310,6 +310,51 @@ export default function AdminPage() {
         reader.readAsArrayBuffer(file);
     };
 
+    const handleExportResults = () => {
+        try {
+            const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
+            const allAttempts: Attempt[] = allAttemptsRaw ? JSON.parse(allAttemptsRaw) : [];
+
+            if (allAttempts.length === 0) {
+                toast({
+                    title: "Tidak Ada Data",
+                    description: "Belum ada peserta yang menyelesaikan kuis.",
+                });
+                return;
+            }
+
+            const allQuizzes = getQuizGroups();
+            const quizTitleMap = new Map(allQuizzes.map(q => [q.id, q.title]));
+
+            const dataToExport = allAttempts.map(attempt => ({
+                'Email Peserta': attempt.userEmail,
+                'Nama Kuis': quizTitleMap.get(attempt.quizId) || attempt.quizId,
+                'Skor (%)': attempt.score.toFixed(0),
+                'Status': attempt.passed ? 'Lulus' : 'Gagal',
+                'Tanggal Pengerjaan': new Date(attempt.timestamp).toLocaleString('id-ID'),
+            }));
+            
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Hasil Peserta");
+            XLSX.writeFile(workbook, `hasil_screening_peserta_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+             toast({
+                title: "Ekspor Berhasil",
+                description: "Data hasil peserta telah diunduh.",
+            });
+
+        } catch (error) {
+            console.error("Gagal mengekspor data:", error);
+            toast({
+                variant: "destructive",
+                title: "Gagal Ekspor",
+                description: "Terjadi kesalahan saat menyiapkan file unduhan.",
+            });
+        }
+    };
+
+
     const totalQuizPages = Math.ceil(quizzes.length / ITEMS_PER_PAGE);
     const displayedQuizzes = quizzes.slice((quizPage - 1) * ITEMS_PER_PAGE, quizPage * ITEMS_PER_PAGE);
 
@@ -360,7 +405,7 @@ export default function AdminPage() {
                         </div>
                         <div className="flex items-center gap-2">
                            <Button asChild variant="outline">
-                              <Link href="/admin/ai-tools"><BrainCircuit /> Alat AI & Ekspor</Link>
+                              <Link href="/admin/ai-tools"><BrainCircuit /> Pembuat Kuis AI</Link>
                            </Button>
                             <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".xlsx, .xls" className="hidden" />
                              <Button variant="outline" onClick={handleDownloadTemplate}><FileDown /> Unduh Template</Button>
@@ -433,9 +478,15 @@ export default function AdminPage() {
                     </CardContent>
                 </Card>
                  <Card>
-                    <CardHeader>
-                        <CardTitle>Monitoring Peserta</CardTitle>
-                        <CardDescription>Lihat hasil kuis dari semua peserta.</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Monitoring Peserta</CardTitle>
+                            <CardDescription>Lihat hasil kuis dari semua peserta.</CardDescription>
+                        </div>
+                        <Button onClick={handleExportResults} variant="outline">
+                            <FileDown className="mr-2 h-4 w-4"/>
+                            Ekspor Semua Hasil
+                        </Button>
                     </CardHeader>
                     <CardContent>
                         <Table>

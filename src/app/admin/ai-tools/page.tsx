@@ -6,20 +6,11 @@ import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, BrainCircuit, FileDown, CheckCircle } from "lucide-react";
+import { Loader2, BrainCircuit, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { generateIsoQuiz } from "@/ai/flows/generate-quiz-flow";
 import { getQuizGroups, saveQuizGroups, type QuizGroup } from "@/data/quiz-data";
-import * as XLSX from "xlsx";
-
-interface Attempt {
-  userEmail: string;
-  quizId: string;
-  score: number;
-  passed: boolean;
-  timestamp: string;
-}
 
 export default function AiToolsPage() {
     const { isAdmin, loading: authLoading } = useAuth();
@@ -68,50 +59,6 @@ export default function AiToolsPage() {
         }
     }
     
-    const handleExportResults = () => {
-        try {
-            const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
-            const allAttempts: Attempt[] = allAttemptsRaw ? JSON.parse(allAttemptsRaw) : [];
-
-            if (allAttempts.length === 0) {
-                toast({
-                    title: "Tidak Ada Data",
-                    description: "Belum ada peserta yang menyelesaikan kuis.",
-                });
-                return;
-            }
-
-            const allQuizzes = getQuizGroups();
-            const quizTitleMap = new Map(allQuizzes.map(q => [q.id, q.title]));
-
-            const dataToExport = allAttempts.map(attempt => ({
-                'Email Peserta': attempt.userEmail,
-                'Nama Kuis': quizTitleMap.get(attempt.quizId) || attempt.quizId,
-                'Skor (%)': attempt.score.toFixed(0),
-                'Status': attempt.passed ? 'Lulus' : 'Gagal',
-                'Tanggal Pengerjaan': new Date(attempt.timestamp).toLocaleString('id-ID'),
-            }));
-            
-            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Hasil Peserta");
-            XLSX.writeFile(workbook, `hasil_screening_peserta_${new Date().toISOString().split('T')[0]}.xlsx`);
-
-             toast({
-                title: "Ekspor Berhasil",
-                description: "Data hasil peserta telah diunduh.",
-            });
-
-        } catch (error) {
-            console.error("Gagal mengekspor data:", error);
-            toast({
-                variant: "destructive",
-                title: "Gagal Ekspor",
-                description: "Terjadi kesalahan saat menyiapkan file unduhan.",
-            });
-        }
-    }
-
     if (authLoading || !isAdmin) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
@@ -124,14 +71,14 @@ export default function AiToolsPage() {
     return (
         <div className="container mx-auto max-w-4xl py-10 px-4">
             <div className="mb-8">
-                <h1 className="text-4xl font-bold font-headline">Alat AI & Ekspor</h1>
-                <p className="text-lg text-muted-foreground">Gunakan AI untuk membuat kuis dan ekspor hasil peserta.</p>
+                <h1 className="text-4xl font-bold font-headline">Alat Pembuat Kuis AI</h1>
+                <p className="text-lg text-muted-foreground">Gunakan AI untuk membuat kuis secara otomatis.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><BrainCircuit /> Pembuat Kuis AI</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><BrainCircuit /> Pembuat Kuis ISO 27001</CardTitle>
                         <CardDescription>Buat kuis baru tentang kesadaran ISO 27001:2022 secara otomatis menggunakan GenAI.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
@@ -154,21 +101,6 @@ export default function AiToolsPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><FileDown /> Ekspor Hasil Peserta</CardTitle>
-                        <CardDescription>Unduh semua data hasil pengerjaan kuis dari seluruh peserta dalam format file Excel.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-4">
-                         <p className="text-sm text-muted-foreground">
-                           File Excel akan berisi informasi email peserta, kuis yang dikerjakan, skor, status kelulusan, dan waktu pengerjaan.
-                        </p>
-                        <Button onClick={handleExportResults} variant="outline">
-                            <FileDown className="mr-2 h-4 w-4"/>
-                            Ekspor Semua Hasil
-                        </Button>
-                    </CardContent>
-                </Card>
             </div>
              <div className="mt-8 text-center">
                 <Button variant="link" onClick={() => router.push('/admin')}>
