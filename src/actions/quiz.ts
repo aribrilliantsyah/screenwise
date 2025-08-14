@@ -245,4 +245,3 @@ export async function getEnrichedAttempts(): Promise<EnrichedAttempt[]> {
         return [];
     }
 }
-

@@ -1,10 +1,12 @@
 
 'use client';
 
-import type { User } from '@prisma/client';
+import type { User as UserType } from '@/lib/db'; // Use Sequelize User type
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type SafeUser = Omit<User, 'passwordHash'>;
+// This SafeUser should come from the user actions, but to avoid circular deps we define it here.
+// It's the User model without the password hash.
+type SafeUser = Omit<UserType, 'passwordHash'>;
 export type Session = { user: SafeUser } | null;
 
 interface SessionContextType {
@@ -21,20 +23,18 @@ interface SessionProviderProps {
 
 export function SessionProvider({ children, session: initialSession }: SessionProviderProps) {
   const [session, setSession] = useState<Session>(initialSession);
-  const [loading, setLoading] = useState(false);
-
+  
   useEffect(() => {
     // This effect ensures that if the server-provided session changes (e.g., on re-login),
     // the client-side state is updated to match.
     setSession(initialSession);
   }, [initialSession]);
 
-
   // We don't need a loading state that blocks the UI here. 
   // The session is provided by the server initially, so there's no client-side fetching to wait for.
   // The `loading` property can be used by individual components if they trigger an async action.
   return (
-    <SessionContext.Provider value={{ session, loading: false }}>
+    <SessionContext.Provider value={{ session, loading: !initialSession && typeof window !== 'undefined' }}>
       {children}
     </SessionContext.Provider>
   );
