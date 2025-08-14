@@ -383,7 +383,7 @@ export default function AdminPage() {
         const newOptions = [...question.options];
         newOptions.splice(optionIndex, 1);
         
-        const currentCorrectAnswer = form.getValues(`questions.${questionIndex}.correctAnswer`);
+        const currentCorrectAnswer = form.getValues(`questions.${index}.correctAnswer`);
         const deletedOptionValue = question.options[optionIndex];
 
         update(questionIndex, {
@@ -519,8 +519,8 @@ export default function AdminPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {displayedAttempts.length > 0 ? displayedAttempts.map((attempt, index) => (
-                                    <TableRow key={index}>
+                                {displayedAttempts.length > 0 ? displayedAttempts.map((attempt) => (
+                                    <TableRow key={`${attempt.userEmail}-${attempt.quizId}-${attempt.timestamp}`}>
                                         <TableCell>{attempt.userEmail}</TableCell>
                                         <TableCell>{quizzes.find(qg => qg.id === attempt.quizId)?.title || 'N/A'}</TableCell>
                                         <TableCell>{attempt.score.toFixed(0)}%</TableCell>
@@ -709,3 +709,5 @@ export default function AdminPage() {
         </div>
     )
 }
+
+    
