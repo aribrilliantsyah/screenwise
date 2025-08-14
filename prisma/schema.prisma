@@ -1,10 +1,9 @@
-
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-1.0.x"]
+  binaryTargets = ["native", "linux-musl"]
 }
 
 datasource db {
@@ -22,7 +21,7 @@ model User {
   gender       String?
   whatsapp     String?
   phone        String?
-  photo        String?
+  photo        String? // Storing as base64 data URI
   isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -48,13 +47,13 @@ model Question {
   id            Int    @id @default(autoincrement())
   quizId        Int
   questionText  String
-  options       String // JSON stringified array
+  options       String // Storing options as a JSON string
   correctAnswer String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
-
+  
   @@unique([quizId, questionText])
 }
 
@@ -64,12 +63,9 @@ model QuizAttempt {
   quizId      Int
   score       Float
   passed      Boolean
-  answers     String // JSON stringified object
+  answers     String   // Storing answers as a JSON string
   submittedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([quizId])
 }
