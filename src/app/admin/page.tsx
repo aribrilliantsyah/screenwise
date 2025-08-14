@@ -21,6 +21,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 import Link from "next/link";
+import { localAuth, type User } from "@/lib/auth";
 
 interface Attempt {
   userEmail: string;
@@ -28,6 +29,11 @@ interface Attempt {
   score: number;
   passed: boolean;
   timestamp: string;
+}
+
+interface EnrichedAttempt extends Attempt {
+    userName: string;
+    userPhone: string;
 }
 
 type FilterStatus = 'all' | 'passed' | 'failed';
@@ -62,7 +68,7 @@ export default function AdminPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [quizzes, setQuizzes] = useState<QuizGroup[]>([]);
-    const [attempts, setAttempts] = useState<Attempt[]>([]);
+    const [attempts, setAttempts] = useState<EnrichedAttempt[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     // Dialog States
@@ -88,8 +94,22 @@ export default function AdminPage() {
     useEffect(() => {
         setQuizzes(getQuizGroups());
         const allAttemptsRaw = localStorage.getItem('all_quiz_attempts');
+        const allUsersRaw = localStorage.getItem('screenwise_users');
+
         if (allAttemptsRaw) {
-            setAttempts(JSON.parse(allAttemptsRaw));
+            const parsedAttempts: Attempt[] = JSON.parse(allAttemptsRaw);
+            const parsedUsers: (User & {password: string})[] = allUsersRaw ? JSON.parse(allUsersRaw) : [];
+            const usersMap = new Map(parsedUsers.map(u => [u.email, u]));
+
+            const enrichedAttempts: EnrichedAttempt[] = parsedAttempts.map(attempt => {
+                const user = usersMap.get(attempt.userEmail);
+                return {
+                    ...attempt,
+                    userName: user?.name || 'N/A',
+                    userPhone: user?.phone || 'N/A'
+                };
+            });
+            setAttempts(enrichedAttempts);
         }
     }, []);
 
@@ -340,14 +360,26 @@ export default function AdminPage() {
 
             const allQuizzes = getQuizGroups();
             const quizTitleMap = new Map(allQuizzes.map(q => [q.id, q.title]));
+            const allUsersRaw = localStorage.getItem('screenwise_users');
+            const allUsers: User[] = allUsersRaw ? JSON.parse(allUsersRaw) : [];
+            const userDetailsMap = new Map(allUsers.map(u => [u.email, u]));
 
-            const dataToExport = filteredAttempts.map(attempt => ({
-                'Email Peserta': attempt.userEmail,
-                'Nama Kuis': quizTitleMap.get(attempt.quizId) || attempt.quizId,
-                'Skor (%)': attempt.score.toFixed(0),
-                'Status': attempt.passed ? 'Lulus' : 'Gagal',
-                'Tanggal Pengerjaan': new Date(attempt.timestamp).toLocaleString('id-ID'),
-            }));
+            const dataToExport = filteredAttempts.map(attempt => {
+                const userDetails = userDetailsMap.get(attempt.userEmail);
+                return {
+                    'Email Peserta': attempt.userEmail,
+                    'Nama Lengkap': userDetails?.name || 'N/A',
+                    'Alamat': userDetails?.address || 'N/A',
+                    'Universitas': userDetails?.university || 'N/A',
+                    'Jenis Kelamin': userDetails?.gender || 'N/A',
+                    'No. WhatsApp': userDetails?.whatsapp || 'N/A',
+                    'No. HP': userDetails?.phone || 'N/A',
+                    'Nama Kuis': quizTitleMap.get(attempt.quizId) || attempt.quizId,
+                    'Skor (%)': attempt.score.toFixed(0),
+                    'Status': attempt.passed ? 'Lulus' : 'Gagal',
+                    'Tanggal Pengerjaan': new Date(attempt.timestamp).toLocaleString('id-ID'),
+                };
+            });
             
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
             const workbook = XLSX.utils.book_new();
@@ -518,7 +550,8 @@ export default function AdminPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Email Peserta</TableHead>
+                                    <TableHead>Nama Peserta</TableHead>
+                                    <TableHead>No. HP</TableHead>
                                     <TableHead>Kuis</TableHead>
                                     <TableHead>Skor</TableHead>
                                     <TableHead>Status</TableHead>
@@ -527,7 +560,11 @@ export default function AdminPage() {
                             <TableBody>
                                 {displayedAttempts.length > 0 ? displayedAttempts.map((attempt) => (
                                     <TableRow key={`${attempt.userEmail}-${attempt.quizId}-${attempt.timestamp}`}>
-                                        <TableCell>{attempt.userEmail}</TableCell>
+                                        <TableCell>
+                                            <div className="font-medium">{attempt.userName}</div>
+                                            <div className="text-sm text-muted-foreground">{attempt.userEmail}</div>
+                                        </TableCell>
+                                        <TableCell>{attempt.userPhone}</TableCell>
                                         <TableCell>{quizzes.find(qg => qg.id === attempt.quizId)?.title || 'N/A'}</TableCell>
                                         <TableCell>{attempt.score.toFixed(0)}%</TableCell>
                                         <TableCell>
@@ -538,7 +575,7 @@ export default function AdminPage() {
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center">Tidak ada peserta yang cocok dengan filter.</TableCell>
+                                        <TableCell colSpan={5} className="text-center">Tidak ada peserta yang cocok dengan filter.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
