@@ -12,24 +12,26 @@ import { Button } from "@/components/ui/button";
 export default function DynamicQuizPage() {
   const router = useRouter();
   const params = useParams();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   const [allQuizzes, setAllQuizzes] = useState<QuizGroup[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(true);
   const quizId = Array.isArray(params.id) ? params.id[0] : params.id;
   
   useEffect(() => {
     setAllQuizzes(getQuizGroups());
+    setLoadingQuizzes(false);
   }, []);
   
   const quiz = useMemo(() => allQuizzes.find(q => q.id === quizId), [quizId, allQuizzes]);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push("/login");
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
-  if (loading || !user) {
+  if (authLoading || loadingQuizzes || !user) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
