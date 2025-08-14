@@ -46,10 +46,10 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full justify-between font-normal"
         >
           {value
-            ? options.find((option) => option.value === value)?.label
+            ? options.find((option) => option.value === value)?.label || value
             : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -58,12 +58,10 @@ export function Combobox({
         <Command>
           <CommandInput 
             placeholder={searchPlaceholder} 
+            value={value}
             onValueChange={(currentValue) => {
                 // Allow free text entry by calling onChange directly
-                const isOption = options.some(opt => opt.value.toLowerCase() === currentValue.toLowerCase());
-                if (!isOption) {
-                    onChange(currentValue);
-                }
+                onChange(currentValue);
             }}
           />
           <CommandList>
@@ -74,9 +72,9 @@ export function Combobox({
                   key={option.value}
                   value={option.value}
                   onSelect={(currentValue) => {
-                    // Find the full label text to set
-                    const selectedOption = options.find(opt => opt.value.toLowerCase() === currentValue.toLowerCase());
-                    onChange(selectedOption ? selectedOption.value : currentValue)
+                    // On select, find the full value from options to ensure casing is correct
+                    const selectedValue = options.find(opt => opt.value.toLowerCase() === currentValue.toLowerCase())?.value || currentValue;
+                    onChange(selectedValue)
                     setOpen(false)
                   }}
                 >
