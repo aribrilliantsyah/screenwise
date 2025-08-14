@@ -52,15 +52,18 @@ export async function signup(data: SignupData): Promise<{ success: boolean; erro
 export async function login(email: string, password: string): Promise<{ success: boolean; error?: string, isAdmin?: boolean }> {
     try {
         const user = await User.findOne({ where: { email }});
+        // Explicitly check for user and passwordHash existence before proceeding.
         if (!user || !user.passwordHash) {
             return { success: false, error: "Email atau kata sandi salah." };
         }
 
+        // Access passwordHash directly from the user object.
         const isMatch = await bcrypt.compare(password, user.passwordHash);
         if (!isMatch) {
             return { success: false, error: "Email atau kata sandi salah." };
         }
         
+        // Use .get({ plain: true }) only after successful validation.
         const { passwordHash, ...userWithoutPassword } = user.get({ plain: true });
         await createSession(userWithoutPassword);
 
