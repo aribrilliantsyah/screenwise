@@ -16,7 +16,7 @@ module.exports = {
     // Insert the admin user with the correct password hash.
     await queryInterface.bulkInsert('Users', [{
       email: adminEmail,
-      passwordHash: passwordHash,
+      passwordHash: passwordHash, // Correct field name
       name: 'Admin',
       isAdmin: true,
       address: 'Kantor Pusat',

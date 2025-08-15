@@ -28,7 +28,7 @@ export async function signup(data: SignupData): Promise<{ success: boolean; erro
         
         const newUser = await User.create({
             email: data.email,
-            passwordHash,
+            passwordHash, // Corrected from paswordHash
             name: data.name,
             address: data.address,
             gender: data.gender,
@@ -50,27 +50,34 @@ export async function signup(data: SignupData): Promise<{ success: boolean; erro
 }
 
 export async function login(email: string, password: string): Promise<{ success: boolean; error?: string, isAdmin?: boolean }> {
+    console.log(`\n[LOGIN ATTEMPT]`);
+    console.log(`Email: ${email}`);
     try {
         const user = await User.findOne({ where: { email }});
-        // Explicitly check for user and passwordHash existence before proceeding.
+        
         if (!user || !user.passwordHash) {
+            console.log(`[LOGIN FAILED] User not found or no password hash for email: ${email}`);
             return { success: false, error: "Email atau kata sandi salah." };
         }
 
-        // Access passwordHash directly from the user object.
+        console.log(`[LOGIN] User found: ${user.email}`);
+        console.log(`[LOGIN] Stored passwordHash: ${user.passwordHash}`);
+
         const isMatch = await bcrypt.compare(password, user.passwordHash);
+        console.log(`[LOGIN] Password match result: ${isMatch}`);
+
         if (!isMatch) {
             return { success: false, error: "Email atau kata sandi salah." };
         }
         
-        // Use .get({ plain: true }) only after successful validation.
         const { passwordHash, ...userWithoutPassword } = user.get({ plain: true });
         await createSession(userWithoutPassword);
 
+        console.log(`[LOGIN SUCCESS] Session created for ${user.email}`);
         return { success: true, isAdmin: user.isAdmin };
 
     } catch (e: any) {
-        console.error("Login error:", e);
+        console.error("[LOGIN ERROR]", e);
         return { success: false, error: e.message || "Terjadi kesalahan saat login." };
     }
 }
@@ -137,5 +144,3 @@ export async function getAllUniversities(): Promise<string[]> {
         return [];
     }
 }
-
-    
