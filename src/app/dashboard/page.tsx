@@ -27,7 +27,7 @@ interface ActiveQuizSession {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { session, loading } = useSession();
+  const { session, loading: authLoading } = useSession();
   const user = session?.user;
 
   const [allQuizzes, setAllQuizzes] = useState<QuizWithQuestions[]>([]);
@@ -37,18 +37,25 @@ export default function DashboardPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   
   useEffect(() => {
-    const fetchSessionAndData = async () => {
-        if (loading) return; // Wait for session to be loaded
-        if (!user) {
-            router.push("/login");
-            return;
-        }
-        if (user.isAdmin) {
-            router.push("/admin");
-            return;
-        }
+    // Jangan lakukan apa-apa jika sesi masih loading
+    if (authLoading) {
+      return;
+    }
     
-        // Load quizzes and attempt history
+    // Jika loading sesi selesai dan tidak ada user, redirect ke login
+    if (!user) {
+        router.push("/login");
+        return;
+    }
+
+    // Jika user adalah admin, redirect ke halaman admin
+    if (user.isAdmin) {
+        router.push("/admin");
+        return;
+    }
+    
+    // Jika ada user, fetch data kuis dan riwayat
+    const fetchData = async () => {
         setIsLoadingData(true);
         const quizzes = await getQuizzes();
         setAllQuizzes(quizzes);
@@ -65,7 +72,6 @@ export default function DashboardPage() {
         });
         setAttemptStatus(status);
 
-        // Load active session
         const activeSessionRaw = localStorage.getItem(`active_quiz_session_${user.email}`);
         if (activeSessionRaw) {
             setActiveSession(JSON.parse(activeSessionRaw));
@@ -73,8 +79,8 @@ export default function DashboardPage() {
         setIsLoadingData(false);
     };
     
-    fetchSessionAndData();
-  }, [router, user, loading]);
+    fetchData();
+  }, [user, authLoading, router]);
 
 
   const handleNavigation = (quizId: number, path: string) => {
@@ -82,7 +88,7 @@ export default function DashboardPage() {
     router.push(path);
   };
 
-  if (loading || isLoadingData || !user) {
+  if (authLoading || isLoadingData) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -90,14 +96,9 @@ export default function DashboardPage() {
     );
   }
   
-  const isAdmin = user?.isAdmin || false;
-  if(isAdmin){
-      router.push('/admin');
-      return (
-          <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-            <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          </div>
-      );
+  // Seharusnya tidak akan pernah sampai sini jika tidak ada user, tapi sebagai pengaman
+  if (!user) {
+    return null;
   }
 
 
