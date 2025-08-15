@@ -41,13 +41,25 @@ const step2Schema = z.object({
   email: z.string().email({ message: "Alamat email tidak valid." }),
   password: z.string().min(6, { message: "Kata sandi minimal harus 6 karakter." }),
   confirmPassword: z.string()
+});
+
+// Gabungan skema untuk validasi akhir
+const signupSchema = z.object({
+  name: z.string().min(1, { message: "Nama lengkap harus diisi." }),
+  address: z.string().min(1, { message: "Alamat harus diisi." }),
+  university: z.string().optional(),
+  gender: z.enum(["Laki-laki", "Perempuan"], { required_error: "Jenis kelamin harus dipilih." }),
+  whatsapp: z.string().min(10, { message: "Nomor WhatsApp tidak valid." }),
+  phone: z.string().min(10, { message: "Nomor HP tidak valid." }),
+  photo: z.string().optional(), // Data URI untuk foto
+  email: z.string().email({ message: "Alamat email tidak valid." }),
+  password: z.string().min(6, { message: "Kata sandi minimal harus 6 karakter." }),
+  confirmPassword: z.string()
 }).refine(data => data.password === data.confirmPassword, {
     message: "Konfirmasi kata sandi tidak cocok.",
     path: ["confirmPassword"],
 });
 
-// Gabungan skema untuk validasi akhir
-const signupSchema = step1Schema.merge(step2Schema);
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Alamat email tidak valid." }),
@@ -68,13 +80,8 @@ export function AuthForm({ variant }: AuthFormProps) {
   const [universityOptions, setUniversityOptions] = useState<{ value: string; label: string }[]>([]);
 
   const currentValidationSchema = useMemo(() => {
-    if (variant === 'login') {
-      return loginSchema;
-    }
-    if (variant === 'signup' && step === 1) {
-      return step1Schema;
-    }
-    // step === 2
+    if (variant === 'login') return loginSchema;
+    if (step === 1) return step1Schema;
     return signupSchema;
   }, [variant, step]);
 
@@ -417,3 +424,5 @@ export function AuthForm({ variant }: AuthFormProps) {
     </Form>
   );
 }
+
+    
