@@ -1,7 +1,7 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -52,27 +52,13 @@ const loginSchema = z.object({
 });
 
 // Semua field digabung (biar FormField name valid untuk login & signup)
-type AllFields = {
-  // step 1
-  name: string;
-  address: string;
-  university?: string;
-  gender?: (typeof GENDER_OPTIONS)[number];
-  whatsapp: string;
-  phone: string;
-  photo?: string;
-  // step 2 / login
-  email: string;
-  password: string;
-  confirmPassword: string;
-};
+type AllFields = z.infer<typeof signupSchema>;
 
 type AuthFormProps = { variant: "login" | "signup" };
 
 // ---------------- Component ----------------
 
 export function AuthForm({ variant }: AuthFormProps) {
-  const router = useRouter();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -163,12 +149,12 @@ export function AuthForm({ variant }: AuthFormProps) {
           const result = await signup(values as SignupData);
           if (result?.error) throw new Error(result.error);
           toast({ title: "Pendaftaran Berhasil", description: "Mengalihkan ke dasbor..." });
-          router.refresh(); // Refresh to re-trigger server-side session check
+          window.location.href = '/dashboard';
         } else {
           const result = await login(values.email, values.password);
           if (result?.error) throw new Error(result.error);
           toast({ title: "Login Berhasil", description: "Mengalihkan..." });
-          router.refresh(); // Refresh to re-trigger server-side session check
+          window.location.href = result.isAdmin ? '/admin' : '/dashboard';
         }
       } catch (err: any) {
         toast({
@@ -180,7 +166,7 @@ export function AuthForm({ variant }: AuthFormProps) {
         setLoading(false);
       }
     },
-    [router, toast, variant]
+    [toast, variant]
   );
 
   // ---------- Render: Login ----------

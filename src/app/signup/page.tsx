@@ -5,9 +5,11 @@ import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 
+// Although the redirect logic is now handled client-side in the form,
+// we keep this server-side check as a fallback for users who are already logged in
+// and try to access the signup page directly.
 export default async function SignupPage() {
   const session = await getSession();
-
   if (session) {
     redirect(session.user.isAdmin ? "/admin" : "/dashboard");
   }
