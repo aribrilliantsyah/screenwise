@@ -74,9 +74,7 @@ export async function signup(data: SignupData): Promise<AuthResult> {
       where: { email: data.email } 
     });
     
-    existingUser = existingUser?.dataValues;
-    
-    if (existingUser) {
+    if (existingUser?.dataValues) {
       return { 
         success: false, 
         error: ERROR_MESSAGES.EMAIL_EXISTS 
@@ -96,7 +94,7 @@ export async function signup(data: SignupData): Promise<AuthResult> {
     
     let newUser: any = await User.create({
       email: data.email,
-      passwordHash,
+      passwordHash: passwordHash, // Corrected field name
       name: data.name,
       address: data.address,
       gender: data.gender,
@@ -287,14 +285,12 @@ export async function getAllUniversities(): Promise<string[]> {
         ]
     };
 
-    let users: any = await User.findAll({
+    let users: any[] = await User.findAll({
       attributes: ['university'],
       where: whereCondition,
-      group: ['university']
+      group: ['university'],
+      raw: true, // Use raw: true to get plain objects
     });
-    
-    // Convert to dataValues array
-    users = users?.map((user: any) => user?.dataValues) || [];
     
     return users
       .map((user: any) => user?.university)

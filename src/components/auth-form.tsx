@@ -162,15 +162,13 @@ export function AuthForm({ variant }: AuthFormProps) {
         if (variant === "signup") {
           const result = await signup(values as SignupData);
           if (result?.error) throw new Error(result.error);
-          toast({ title: "Pendaftaran Berhasil", description: "Anda akan diarahkan ke dasbor." });
-          router.push("/dashboard");
-          router.refresh();
+          toast({ title: "Pendaftaran Berhasil", description: "Mengalihkan ke dasbor..." });
+          router.refresh(); // Refresh to re-trigger server-side session check
         } else {
           const result = await login(values.email, values.password);
           if (result?.error) throw new Error(result.error);
-          toast({ title: "Login Berhasil", description: "Anda akan diarahkan." });
-          router.push(result.isAdmin ? "/admin" : "/dashboard");
-          router.refresh();
+          toast({ title: "Login Berhasil", description: "Mengalihkan..." });
+          router.refresh(); // Refresh to re-trigger server-side session check
         }
       } catch (err: any) {
         toast({
