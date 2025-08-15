@@ -16,16 +16,20 @@ export type AttemptWithAnswers = QuizAttemptType & { answers: Record<string, str
 
 // Helper to parse questions from DB format to client format
 const parseQuestions = (questions: QuestionType[]): QuestionWithOptions[] => {
-    return questions.map(q => ({
-        ...q,
-        options: JSON.parse(q.options),
-    }));
+    return questions.map(q => {
+        const questionData = (q as any).dataValues || q;
+        return {
+            ...questionData,
+            options: JSON.parse(questionData.options),
+        };
+    });
 };
 
 const parseQuiz = (quiz: Quiz): QuizWithQuestions => {
+    const quizData = quiz.dataValues;
     return {
-        ...quiz.get({ plain: true }),
-        questions: parseQuestions(quiz.questions || []),
+        ...quizData,
+        questions: parseQuestions(quizData.questions || []),
     };
 };
 
@@ -45,7 +49,7 @@ export async function getQuizzes(): Promise<QuizWithQuestions[]> {
 export async function getAllUsers(): Promise<UserType[]> {
     try {
         const users = await User.findAll();
-        return users.map(u => u.get({ plain: true }));
+        return users.map(u => u.dataValues);
     } catch(e) {
         console.error("Failed to fetch users:", e);
         return [];
@@ -186,7 +190,7 @@ export async function saveAttempt(attemptData: Omit<QuizAttemptType, 'id' | 'sub
             ...attemptData,
             answers: JSON.stringify(attemptData.answers), // Stringify answers object
         });
-        return newAttempt.get({ plain: true });
+        return newAttempt.dataValues;
     } catch (error) {
         console.error("Failed to save attempt:", error);
         return null;
@@ -236,9 +240,14 @@ export async function getEnrichedAttempts(): Promise<EnrichedAttempt[]> {
 
         // Parse answers string for each attempt
         return attempts.map(attempt => {
-            const plainAttempt = attempt.get({ plain: true });
+            const plainAttempt = attempt.dataValues;
+            const user = (plainAttempt.user as any)?.dataValues || plainAttempt.user;
+            const quiz = (plainAttempt.quiz as any)?.dataValues || plainAttempt.quiz;
+            
             return {
                 ...plainAttempt,
+                user,
+                quiz,
                 answers: JSON.parse(plainAttempt.answers),
             } as EnrichedAttempt;
         });
