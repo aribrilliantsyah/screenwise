@@ -38,10 +38,12 @@ export default function DashboardPage() {
     if (authLoading) {
       return;
     }
+    
     if (!session?.user) {
       router.push("/login");
       return;
     }
+    
     if (session.user.isAdmin) {
       router.push("/admin");
       return;
@@ -52,21 +54,23 @@ export default function DashboardPage() {
       const quizzes = await getQuizzes();
       setAllQuizzes(quizzes);
 
-      const status: AttemptStatus = {};
-      quizzes.forEach(quiz => {
-        const attemptRaw = localStorage.getItem(`quiz_attempt_${session.user.email}_${quiz.id}`);
-        if (attemptRaw) {
-          const attempt = JSON.parse(attemptRaw);
-          status[quiz.id] = { passed: attempt.passed, score: attempt.score };
-        } else {
-          status[quiz.id] = null;
-        }
-      });
-      setAttemptStatus(status);
+      if (session.user) {
+        const status: AttemptStatus = {};
+        quizzes.forEach(quiz => {
+          const attemptRaw = localStorage.getItem(`quiz_attempt_${session.user.email}_${quiz.id}`);
+          if (attemptRaw) {
+            const attempt = JSON.parse(attemptRaw);
+            status[quiz.id] = { passed: attempt.passed, score: attempt.score };
+          } else {
+            status[quiz.id] = null;
+          }
+        });
+        setAttemptStatus(status);
 
-      const activeSessionRaw = localStorage.getItem(`active_quiz_session_${session.user.email}`);
-      if (activeSessionRaw) {
-        setActiveSession(JSON.parse(activeSessionRaw));
+        const activeSessionRaw = localStorage.getItem(`active_quiz_session_${session.user.email}`);
+        if (activeSessionRaw) {
+          setActiveSession(JSON.parse(activeSessionRaw));
+        }
       }
       setIsLoadingData(false);
     };
@@ -79,7 +83,7 @@ export default function DashboardPage() {
     router.push(path);
   };
 
-  if (authLoading || isLoadingData || !session?.user) {
+  if (authLoading || isLoadingData) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -87,7 +91,16 @@ export default function DashboardPage() {
     );
   }
   
-  const user = session.user;
+  const user = session?.user;
+  if (!user) {
+    // This case should be handled by the redirect in useEffect, but it's a good safeguard.
+    return (
+        <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+            <p>Sesi tidak ditemukan. Mengarahkan ke halaman login...</p>
+        </div>
+    );
+  }
+  
   const isQuizActive = !!activeSession;
   const attemptedQuizzes = allQuizzes.filter(quiz => !!attemptStatus[quiz.id]);
   const availableQuizzes = allQuizzes.filter(quiz => !attemptStatus[quiz.id]);

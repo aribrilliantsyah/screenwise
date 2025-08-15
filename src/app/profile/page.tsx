@@ -77,8 +77,8 @@ export default function ProfilePage() {
     });
 
     useEffect(() => {
-        if(authLoading) return;
-        if(!user){
+        if (authLoading) return;
+        if (!session?.user) {
             router.push('/login');
             return;
         }
@@ -90,16 +90,15 @@ export default function ProfilePage() {
         
         fetchUniversities();
         profileForm.reset({
-            name: user.name || "",
-            address: user.address || "",
-            university: user.university || "",
-            whatsapp: user.whatsapp || "",
-            phone: user.phone || "",
+            name: session.user.name || "",
+            address: session.user.address || "",
+            university: session.user.university || "",
+            whatsapp: session.user.whatsapp || "",
+            phone: session.user.phone || "",
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, authLoading, router]);
+    }, [session, authLoading, router, profileForm]);
 
-    if (authLoading || !user) {
+    if (authLoading || !session?.user) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />

@@ -82,13 +82,14 @@ export default function AdminPage() {
     };
 
     useEffect(() => {
-      if (authLoading) return;
+      if (authLoading) {
+        return;
+      }
       if (!session || !session.user.isAdmin) {
           router.push('/login');
           return;
       }
       loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session, authLoading, router]);
 
     const form = useForm<QuizFormData>({
@@ -384,7 +385,7 @@ export default function AdminPage() {
         setAttemptsPage(1); // Reset ke halaman pertama saat filter berubah
     };
 
-    if (authLoading || (!session && !authLoading) || isLoadingData) {
+    if (authLoading || isLoadingData) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />

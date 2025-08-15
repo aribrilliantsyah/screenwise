@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -60,6 +61,7 @@ type AuthFormProps = { variant: "login" | "signup" };
 
 export function AuthForm({ variant }: AuthFormProps) {
   const { toast } = useToast();
+  const router = useRouter();
 
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<number>(1);
@@ -149,12 +151,12 @@ export function AuthForm({ variant }: AuthFormProps) {
           const result = await signup(values as SignupData);
           if (result?.error) throw new Error(result.error);
           toast({ title: "Pendaftaran Berhasil", description: "Mengalihkan ke dasbor..." });
-          window.location.href = '/dashboard';
+          router.refresh();
         } else {
           const result = await login(values.email, values.password);
           if (result?.error) throw new Error(result.error);
           toast({ title: "Login Berhasil", description: "Mengalihkan..." });
-          window.location.href = result.isAdmin ? '/admin' : '/dashboard';
+          router.refresh();
         }
       } catch (err: any) {
         toast({
@@ -166,7 +168,7 @@ export function AuthForm({ variant }: AuthFormProps) {
         setLoading(false);
       }
     },
-    [toast, variant]
+    [toast, variant, router]
   );
 
   // ---------- Render: Login ----------
