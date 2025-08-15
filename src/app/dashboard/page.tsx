@@ -24,7 +24,6 @@ interface ActiveQuizSession {
     startTime: number;
 }
 
-
 export default function DashboardPage() {
   const router = useRouter();
   const { session, loading: authLoading } = useSession();
@@ -37,24 +36,22 @@ export default function DashboardPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   
   useEffect(() => {
-    // Jangan lakukan apa-apa jika sesi masih loading
-    if (authLoading) {
-      return;
-    }
-    
-    // Jika loading sesi selesai dan tidak ada user, redirect ke login
+    // Jika sesi masih loading, jangan lakukan apa-apa
+    if (authLoading) return;
+
+    // Jika sudah tidak loading dan tidak ada user, arahkan ke login
     if (!user) {
         router.push("/login");
         return;
     }
 
-    // Jika user adalah admin, redirect ke halaman admin
+    // Jika user adalah admin, arahkan ke dasbor admin
     if (user.isAdmin) {
         router.push("/admin");
         return;
     }
     
-    // Jika ada user, fetch data kuis dan riwayat
+    // Jika ada user, ambil data
     const fetchData = async () => {
         setIsLoadingData(true);
         const quizzes = await getQuizzes();
@@ -96,11 +93,11 @@ export default function DashboardPage() {
     );
   }
   
-  // Seharusnya tidak akan pernah sampai sini jika tidak ada user, tapi sebagai pengaman
   if (!user) {
+    // Ini seharusnya tidak akan terjadi jika authLoading sudah false,
+    // tetapi sebagai pengaman tambahan.
     return null;
   }
-
 
   const isQuizActive = !!activeSession;
   const attemptedQuizzes = allQuizzes.filter(quiz => !!attemptStatus[quiz.id]);
