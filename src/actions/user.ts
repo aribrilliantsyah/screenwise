@@ -54,6 +54,7 @@ export async function login(email: string, password: string): Promise<{ success:
     console.log(`Email: ${email}`);
     try {
         const user = await User.findOne({ where: { email }});
+        console.log(user)
         
         if (!user || !user.passwordHash) {
             console.log(`[LOGIN FAILED] User not found or no password hash for email: ${email}`);
