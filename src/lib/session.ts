@@ -1,4 +1,3 @@
-
 'use server';
 
 import 'server-only';
@@ -13,7 +12,7 @@ export async function encrypt(payload: { user: SafeUser; expires: Date }) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('1d') // Set expiration time to 1 day
+    .setExpirationTime('1d') // 1 hari
     .sign(key);
 }
 
@@ -31,23 +30,27 @@ export async function decrypt(input: string): Promise<{ user: SafeUser } | null>
 }
 
 export async function createSession(user: SafeUser) {
-  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // Expires in 24 hours
+  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const session = await encrypt({ user, expires });
 
-  cookies().set('session', session, {
+  const cookieStore = await cookies(); // ⬅️ wajib await
+  cookieStore.set('session', session, {
     expires,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
     path: '/',
   });
 }
 
 export async function getSession(): Promise<{ user: SafeUser } | null> {
-  const sessionCookie = cookies().get('session')?.value;
+  const cookieStore = await cookies(); // ⬅️ wajib await
+  const sessionCookie = cookieStore.get('session')?.value;
   if (!sessionCookie) return null;
   return decrypt(sessionCookie);
 }
 
 export async function deleteSession() {
-  cookies().delete('session');
+  const cookieStore = await cookies(); // ⬅️ wajib await
+  cookieStore.delete('session');
 }
