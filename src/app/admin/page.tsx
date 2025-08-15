@@ -82,8 +82,14 @@ export default function AdminPage() {
     };
 
     useEffect(() => {
-        loadData();
-    }, []);
+      if (authLoading) return;
+      if (!session || !session.user.isAdmin) {
+          router.push('/login');
+          return;
+      }
+      loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session, authLoading, router]);
 
     const form = useForm<QuizFormData>({
         resolver: zodResolver(quizFormSchema),
@@ -364,7 +370,7 @@ export default function AdminPage() {
         const newOptions = [...(question.options || [])];
         const deletedOptionValue = newOptions.splice(optionIndex, 1)[0];
         
-        const currentCorrectAnswer = form.getValues(`questions.${questionIndex}.correctAnswer`);
+        const currentCorrectAnswer = form.getValues(`questions.${index}.correctAnswer`);
 
         update(questionIndex, {
             ...question,
@@ -378,18 +384,9 @@ export default function AdminPage() {
         setAttemptsPage(1); // Reset ke halaman pertama saat filter berubah
     };
 
-    if (isLoadingData || authLoading) {
+    if (authLoading || (!session && !authLoading) || isLoadingData) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-                <Loader2 className="h-16 w-16 animate-spin text-primary" />
-            </div>
-        );
-    }
-    
-    if (!session || !session.user.isAdmin) {
-        router.push('/login');
-        return (
-             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
             </div>
         );

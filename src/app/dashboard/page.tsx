@@ -27,7 +27,6 @@ interface ActiveQuizSession {
 export default function DashboardPage() {
   const router = useRouter();
   const { session, loading: authLoading } = useSession();
-  const user = session?.user;
 
   const [allQuizzes, setAllQuizzes] = useState<QuizWithQuestions[]>([]);
   const [attemptStatus, setAttemptStatus] = useState<AttemptStatus>({});
@@ -36,56 +35,51 @@ export default function DashboardPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   
   useEffect(() => {
-    // Jika sesi masih loading, jangan lakukan apa-apa
-    if (authLoading) return;
-
-    // Jika sudah tidak loading dan tidak ada user, arahkan ke login
-    if (!user) {
-        router.push("/login");
-        return;
+    if (authLoading) {
+      return;
+    }
+    if (!session?.user) {
+      router.push("/login");
+      return;
+    }
+    if (session.user.isAdmin) {
+      router.push("/admin");
+      return;
     }
 
-    // Jika user adalah admin, arahkan ke dasbor admin
-    if (user.isAdmin) {
-        router.push("/admin");
-        return;
-    }
-    
-    // Jika ada user, ambil data
     const fetchData = async () => {
-        setIsLoadingData(true);
-        const quizzes = await getQuizzes();
-        setAllQuizzes(quizzes);
+      setIsLoadingData(true);
+      const quizzes = await getQuizzes();
+      setAllQuizzes(quizzes);
 
-        const status: AttemptStatus = {};
-        quizzes.forEach(quiz => {
-            const attemptRaw = localStorage.getItem(`quiz_attempt_${user.email}_${quiz.id}`);
-            if (attemptRaw) {
-                const attempt = JSON.parse(attemptRaw);
-                status[quiz.id] = { passed: attempt.passed, score: attempt.score };
-            } else {
-                status[quiz.id] = null;
-            }
-        });
-        setAttemptStatus(status);
-
-        const activeSessionRaw = localStorage.getItem(`active_quiz_session_${user.email}`);
-        if (activeSessionRaw) {
-            setActiveSession(JSON.parse(activeSessionRaw));
+      const status: AttemptStatus = {};
+      quizzes.forEach(quiz => {
+        const attemptRaw = localStorage.getItem(`quiz_attempt_${session.user.email}_${quiz.id}`);
+        if (attemptRaw) {
+          const attempt = JSON.parse(attemptRaw);
+          status[quiz.id] = { passed: attempt.passed, score: attempt.score };
+        } else {
+          status[quiz.id] = null;
         }
-        setIsLoadingData(false);
-    };
-    
-    fetchData();
-  }, [user, authLoading, router]);
+      });
+      setAttemptStatus(status);
 
+      const activeSessionRaw = localStorage.getItem(`active_quiz_session_${session.user.email}`);
+      if (activeSessionRaw) {
+        setActiveSession(JSON.parse(activeSessionRaw));
+      }
+      setIsLoadingData(false);
+    };
+
+    fetchData();
+  }, [session, authLoading, router]);
 
   const handleNavigation = (quizId: number, path: string) => {
     setLoadingQuiz(quizId);
     router.push(path);
   };
 
-  if (authLoading || isLoadingData) {
+  if (authLoading || isLoadingData || !session?.user) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -93,12 +87,7 @@ export default function DashboardPage() {
     );
   }
   
-  if (!user) {
-    // Ini seharusnya tidak akan terjadi jika authLoading sudah false,
-    // tetapi sebagai pengaman tambahan.
-    return null;
-  }
-
+  const user = session.user;
   const isQuizActive = !!activeSession;
   const attemptedQuizzes = allQuizzes.filter(quiz => !!attemptStatus[quiz.id]);
   const availableQuizzes = allQuizzes.filter(quiz => !attemptStatus[quiz.id]);

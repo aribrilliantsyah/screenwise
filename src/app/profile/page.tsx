@@ -77,43 +77,35 @@ export default function ProfilePage() {
     });
 
     useEffect(() => {
-      async function fetchUniversities() {
-        const storedUniversities = await getAllUniversities();
-        setUniversityOptions(storedUniversities.map(u => ({ value: u, label: u })));
-      }
-      fetchUniversities();
-    }, []);
-
-    // Efek untuk mereset form jika user berubah (misal setelah login)
-    useEffect(() => {
-        if(user) {
-            profileForm.reset({
-                name: user.name || "",
-                address: user.address || "",
-                university: user.university || "",
-                whatsapp: user.whatsapp || "",
-                phone: user.phone || "",
-            });
+        if(authLoading) return;
+        if(!user){
+            router.push('/login');
+            return;
         }
-    }, [user, profileForm]);
 
-    if (authLoading) {
+        async function fetchUniversities() {
+            const storedUniversities = await getAllUniversities();
+            setUniversityOptions(storedUniversities.map(u => ({ value: u, label: u })));
+        }
+        
+        fetchUniversities();
+        profileForm.reset({
+            name: user.name || "",
+            address: user.address || "",
+            university: user.university || "",
+            whatsapp: user.whatsapp || "",
+            phone: user.phone || "",
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, authLoading, router]);
+
+    if (authLoading || !user) {
         return (
             <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
             </div>
         );
     }
-
-    if (!user) {
-        router.push('/login');
-        return (
-            <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-                <Loader2 className="h-16 w-16 animate-spin text-primary" />
-            </div>
-        );
-    }
-
 
     const onProfileSubmit = async (values: z.infer<typeof profileSchema>) => {
         if(!user) return;
